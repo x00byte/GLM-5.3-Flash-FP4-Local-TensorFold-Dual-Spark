@@ -1,0 +1,23 @@
+{
+  "engine": "unmodified native TensorFold; separate from the deployed patched Python engine",
+  "tensorfold_revision": "6ee828c24bf802cdd73507d6fc60bb27a82c0d66",
+  "version": "1.0.12",
+  "checkpoint": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "checkpoint_revision": "76348ddb2be2e35e39ecfc00e75dc07703f4f3d5",
+  "config_sha256": "dbf6aaf0d3651a5a297e6672bed57979c20528e2aa7475b80df5ba63d5402ba8",
+  "quant_algo": "MIXED_PRECISION",
+  "status": "unsupported",
+  "test": "Executed unmodified upstream modelopt.admit against the actual checkpoint config; upstream positive/negative tests passed",
+  "reason": "UnsupportedQuant: ModelOpt MIXED_PRECISION; native GLM engine only reads old ModelOpt NVFP4 layout",
+  "gpu_executed": false,
+  "quantized_layer_algorithms": {
+    "MXFP8": 205,
+    "NVFP4": 42,
+    "FP8_PB_WO": 170,
+    "W4A16_NVFP4": 77
+  },
+  "scale_encodings": {
+    "csf_32x2_v1": 42
+  },
+  "upstream_admission_source": "https://github.com/ashhart/TensorFold/blob/6ee828c24bf802cdd73507d6fc60bb27a82c0d66/zig/src/core/modelopt.zig"
+}

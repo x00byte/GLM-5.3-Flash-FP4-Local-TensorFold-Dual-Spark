@@ -1,0 +1,44 @@
+[
+  {
+    "policy": "fnc7:0.3",
+    "thinking": "off",
+    "requests": 13,
+    "zero_prefill": true,
+    "outside_requests": 0
+  },
+  {
+    "policy": "fnc7:0.3",
+    "thinking": "on",
+    "requests": 13,
+    "zero_prefill": true,
+    "outside_requests": 0
+  },
+  {
+    "policy": "fnc7:0.1",
+    "thinking": "off",
+    "requests": 13,
+    "zero_prefill": true,
+    "outside_requests": 0
+  },
+  {
+    "policy": "fnc7:0.1",
+    "thinking": "on",
+    "requests": 13,
+    "zero_prefill": true,
+    "outside_requests": 0
+  },
+  {
+    "policy": "fnc7:0.5",
+    "thinking": "off",
+    "requests": 13,
+    "zero_prefill": true,
+    "outside_requests": 0
+  },
+  {
+    "policy": "fnc7:0.5",
+    "thinking": "on",
+    "requests": 13,
+    "zero_prefill": true,
+    "outside_requests": 0
+  }
+]

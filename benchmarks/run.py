@@ -10,6 +10,7 @@ def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--base',default='http://127.0.0.1:8888');p.add_argument('--out',type=Path,default=ROOT/'local-results');p.add_argument('--concurrency',default='1,2,3,4,5,6,7,8');p.add_argument('--repeats',type=int,default=1);a=p.parse_args()
  cs=[int(c) for c in a.concurrency.split(',')]
  if not cs or len(set(cs))!=len(cs) or any(c<1 or c>8 for c in cs) or a.repeats<1:p.error('Distinct concurrency values 1-8 and positive repeats required')
+ if a.out.exists() and any(a.out.iterdir()):p.error('Choose an empty output directory so separate runs cannot mix')
  assert MODEL in {m['id'] for m in get(a.base,'/v1/models')['data']}
  health=get(a.base,'/health');assert health.get('backend')=='tensorfold' and health.get('ok') and not health.get('busy'),health
  assert health.get('decode_active') is not None,'This recipe requires the active-decode counter patch'

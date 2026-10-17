@@ -1,0 +1,25 @@
+{
+  "target": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "revision": "76348ddb2be2e35e39ecfc00e75dc07703f4f3d5",
+  "runtime_source_changed": false,
+  "checkpoint_changed": false,
+  "pool_tokens_before": 610304,
+  "pool_tokens_after": 1415168,
+  "pool_capacity_gain_percent": 131.87919463087246,
+  "changes": {
+    "TENSORFOLD_MEMORY_RESERVE_GIB": {
+      "before": "20",
+      "after": "14.5"
+    },
+    "TF_GLM_MULTI_SAMPLER": {
+      "before": "default",
+      "after": "packed"
+    },
+    "TF_GLM_MULTI_ASYNC": {
+      "before": "default",
+      "after": "1"
+    }
+  },
+  "rejected_candidate": "16 GiB reserve plus lone-stream graphs, packed sampling and async dispatch; the combined profile did not improve decode",
+  "scope": "Configuration tuning on the same checkpoint/runtime. Short decode measurements vary with scheduling and draft acceptance."
+}

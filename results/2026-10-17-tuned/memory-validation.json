@@ -1,0 +1,19 @@
+{
+  "samples": 63,
+  "interval_seconds": 5,
+  "head": {
+    "minimum_available_gib": 8.866119384765625,
+    "swap_used_gib_range": [
+      1.2779808044433594,
+      1.8838233947753906
+    ]
+  },
+  "worker": {
+    "minimum_available_gib": 9.385051727294922,
+    "swap_used_gib_range": [
+      0.089874267578125,
+      0.089874267578125
+    ]
+  },
+  "source": "Linux /proc/meminfo on each node; MemAvailable includes reclaimable file cache. Admission reserve is not a guarantee of physical free RAM."
+}

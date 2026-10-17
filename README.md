@@ -10,18 +10,20 @@ The target snapshot, TensorFold base image and DFlash2 drafter are pinned in [pr
 
 | Concurrent requests | Decode off | Decode high | Cold prefill off | Cold prefill high |
 |---:|---:|---:|---:|---:|
-| 1 | 52.8 | 40.8 | 822.9 | 811.6 |
-| 2 | 90.5 | 71.4 | 901.5 | 896.5 |
-| 3 | 88.6 | 74.9 | 916.2 | 922.9 |
-| 4 | 92.1 | 88.5 | 894.3 | 894.1 |
-| 5 | 102.4 | 93.4 | 916.0 | 914.0 |
-| 6 | 119.0 | 106.9 | 926.5 | 921.0 |
-| 7 | 122.6 | 114.6 | 909.0 | 908.5 |
-| 8 | 131.5 | 115.4 | 921.1 | 897.6 |
+| 1 | 50.9 | 40.9 | 828.8 | 819.6 |
+| 2 | 80.0 | 71.3 | 818.1 | 896.6 |
+| 3 | 89.1 | 71.4 | 920.6 | 866.1 |
+| 4 | 98.0 | 88.8 | 896.6 | 894.5 |
+| 5 | 96.4 | 95.0 | 868.3 | 907.4 |
+| 6 | 122.8 | 107.5 | 920.2 | 919.6 |
+| 7 | 123.0 | 113.9 | 907.0 | 863.9 |
+| 8 | 128.0 | 118.2 | 894.2 | 894.1 |
 
-Measured on 2026-10-17. Rates are tokens/s. C1 is single-stream decode; C2-C8 decode is aggregate. Thinking high uses GLM's native high effort. Decode is measured after full prompt-cache warmup with zero prefill tokens verified; cold prefill comes from separate uncached requests. The table uses full-burst streamed decode, including scheduling and tail effects after the first token. [Raw records, counters and exact configuration](results/2026-10-17/README.md) are included.
+Measured on 2026-10-17. Rates are tokens/s. C1 is single-stream decode; C2-C8 decode is aggregate. Thinking high uses GLM's native high effort. Decode is measured after full prompt-cache warmup with zero prefill tokens verified; cold prefill comes from separate uncached requests. The table uses full-burst streamed decode, including scheduling and tail effects after the first token. [Raw records, counters and exact configuration](results/2026-10-17-tuned/README.md) are included.
 
-The 2,048-token prefill chunks improved this workload's C1 cold prefill by **24.1%** over the initial 512-token configuration. Best cold prefill in the final sweep was **926.5 input tok/s**. The earlier three-run C1/C4/C8 decode confirmation is retained under a separately labeled 512-token tuning configuration. Steady-concurrency engine-round rates are available in the detailed CSV; they are distinct from the full-burst client rates above.
+The tuned profile allocates **1,415,168 FP8 KV pool tokens**, shared across the eight slots, compared with **610,304** in v0.1.0. The per-request limit remains **262,144 tokens**. Packed candidate gathers and asynchronous rank dispatch are enabled; the candidate with lone-stream graphs was not retained. Best cold prefill in this sweep was **920.6 input tok/s**. This tuning establishes a cache-capacity increase, not a repeatable decode speedup.
+
+[Configuration changes and rejected experiments](docs/performance-tuning.md) are documented. The [original measurements](results/2026-10-17/README.md) are retained for comparison. These short sweeps vary with scheduling and draft acceptance; engine-round rates are reported separately from the full-burst client rates above.
 
 ## Build
 
@@ -60,7 +62,7 @@ The default measured configuration uses [IncoAI DFlash2](https://huggingface.co/
 
 ## Start the two ranks
 
-Copy `node.env.example` to `node.local.env` on each node. Set its model and cache paths, fabric address, interface, RoCE devices and GID index for that node. Use `RANK=1` on the worker and `RANK=0` on the head. Directories must be writable where downloads and caches are stored; serving mounts both checkpoints read-only.
+Copy `node.env.example` to `node.local.env` on each node. Set its model and cache paths, fabric address, interface, RoCE devices and GID index for that node. Use `RANK=1` on the worker and `RANK=0` on the head. The measured performance defaults include a 14.5 GiB startup admission reserve and an 8 GiB cap on extra kept-prompt memory; see [cache tuning](docs/performance-tuning.md). Directories must be writable where downloads and caches are stored; serving mounts both checkpoints read-only.
 
 On each node:
 
@@ -81,16 +83,16 @@ Rank 0 waits for API readiness on port 8888. Kernel compilation is cached betwee
 
 ## Reproduce the benchmark
 
-Pause other inference clients and warm the serving process before measuring. The suite checks the exact served model and TensorFold backend, verifies every request's token cap and cache use, and checks backend request totals for outside traffic:
+Pause other inference clients and warm the serving process before measuring. Use an empty output directory for each run. The suite checks the exact served model and TensorFold backend, verifies every request's token cap and cache use, and checks backend request totals for outside traffic:
 
 ```bash
-python3 benchmarks/run.py --out local-results
-python3 benchmarks/report.py local-results
+python3 benchmarks/run.py --out local-results/sweep
+python3 benchmarks/report.py local-results/sweep
 ```
 
 C1-C8 decode requests first seed their own prompt state, then generate 64 output tokens. Counter deltas must show zero prefill tokens during each measured decode burst. Separate one-output-token requests measure uncached prefill. Temperature is zero; thinking uses GLM's native off/high modes. The full sweep makes 144 timed requests and 72 prefix seeds.
 
-The [measurement report](results/2026-10-17/README.md) separates full-burst client decode, decode-round throughput at exactly C active streams, and cold prefill. Warm-prefix TTFT is never presented as prefill throughput. Short ledger prompts and 64-token outputs keep the test quick; throughput varies with prompt content, draft acceptance, output length and context.
+The [measurement report](results/2026-10-17-tuned/README.md) separates full-burst client decode, decode-round throughput at exactly C active streams, and cold prefill. Warm-prefix TTFT is never presented as prefill throughput. Short ledger prompts and 64-token outputs keep the test quick; throughput varies with prompt content, draft acceptance, output length and context.
 
 For the retained runtime's long-context module warmup:
 
@@ -98,7 +100,7 @@ For the retained runtime's long-context module warmup:
 python3 scripts/warmup_long_context.py
 ```
 
-The measured warmup passed at **145,485 input tokens in 150.8 s** (964.8 input tok/s). This is a separate long-context validation workload. It exercises the selection tile above 131k tokens in the serving process. It takes a separate uncached 145k-token prompt, uses no drafts, and is excluded from the throughput table.
+The measured warmup passed at **145,485 input tokens in 147.4 s** (987.0 input tok/s). This is a separate long-context validation workload. It exercises the selection tile above 131k tokens in the serving process. It takes a separate uncached 145k-token prompt, uses no drafts, and is excluded from the throughput table.
 
 ## Implementation and validation
 

@@ -1,0 +1,26 @@
+{
+  "baseline": {
+    "admission_reserve_gib": 20,
+    "extra_cache_cap_gib": 8,
+    "pool_tokens": 610304,
+    "lone": false,
+    "sampler": "streams",
+    "async": false
+  },
+  "candidate": {
+    "admission_reserve_gib": 16,
+    "extra_cache_cap_gib": 8,
+    "pool_tokens": 1251328,
+    "lone": true,
+    "sampler": "packed",
+    "async": true
+  },
+  "final": {
+    "admission_reserve_gib": 14.5,
+    "extra_cache_cap_gib": 8,
+    "pool_tokens": 1415168,
+    "lone": false,
+    "sampler": "packed",
+    "async": true
+  }
+}

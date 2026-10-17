@@ -43,7 +43,7 @@ def main():
     a.out.mkdir(parents=True,exist_ok=True)
     run_started=time.time();run_origin=time.perf_counter()
     (a.out/'run.json').write_text(json.dumps({**vars(a),'out':str(a.out),'tensorfold_log':str(a.tensorfold_log) if a.tensorfold_log else None,'serving':sorted(ids),'started':time.time(),
-        'notes':'Every request has a unique cache_salt to prevent kept-prefix reuse. Thinking on uses GLM native high effort. Client effective prefill includes scheduling and first-token work; decode uses completion usage minus one over first-to-last streamed delta. Speculative decoding may return multiple tokens in a delta. Backend metrics are saved separately.'},indent=2))
+        'notes':'Cold requests have unique cache salts. Warm-prefix decode reuses the corresponding seed-request salt only for its paired timed request; its cached-input/TTFT ratios are omitted. Thinking on uses GLM native high effort. Client effective prefill includes scheduling and first-token work; decode uses completion usage minus one over first-to-last streamed delta. Speculative decoding may return multiple tokens in a delta. Backend metrics are saved separately.'},indent=2))
     def metrics(name):
         try:
             with urllib.request.urlopen(a.base+'/metrics',timeout=10) as response: (a.out/name).write_bytes(response.read())
@@ -83,7 +83,7 @@ def main():
         n=usage['completion_tokens'];p=usage['prompt_tokens'];ttft=first-start;decode=last-first
         return {'label':a.label,'thinking':a.thinking,'input_lines':a.input_lines,'output_cap':a.output_tokens,'concurrency':c,'repeat':r,'stream':i,'prompt_sha256':hashlib.sha256(prompt.encode()).hexdigest(),
                 'cache_salt':body['cache_salt'],'prompt_tokens':p,'completion_tokens':n,'ttft_s':ttft,'total_s':end-start,'decode_s':decode,
-                'prefill_effective_tps':p/ttft,'decode_stream_tps':(n-1)/decode if decode>0 and n>1 else None,
+                'prefill_effective_tps':None if a.warm_prefix else p/ttft,'decode_stream_tps':(n-1)/decode if decode>0 and n>1 else None,
                 'first_relative_s':first-run_origin,'last_relative_s':last-run_origin,
                 'finish_reason':finish,'chunks':chunks,'reasoning_chunks':reasoning_chunks,'content_chunks':content_chunks,'backend':extra}
     metrics('metrics-before.txt');summaries=[]
@@ -117,9 +117,9 @@ def main():
                     'completion_tokens':sum(x['completion_tokens'] for x in rows),'batch_s':elapsed,
                     'output_wall_tps':sum(x['completion_tokens'] for x in rows)/elapsed,
                     'ttft_median_s':statistics.median(x['ttft_s'] for x in rows),
-                    'prefill_effective_aggregate_tps':sum(x['prompt_tokens'] for x in rows)/max(x['ttft_s'] for x in rows),
+                    'prefill_effective_aggregate_tps':None if a.warm_prefix else sum(x['prompt_tokens'] for x in rows)/max(x['ttft_s'] for x in rows),
                     'decode_observed_aggregate_tps':(sum(x['completion_tokens'] for x in rows)-c)/(max(x['last_relative_s'] for x in rows)-min(x['first_relative_s'] for x in rows)) if a.output_tokens>1 and max(x['last_relative_s'] for x in rows)>min(x['first_relative_s'] for x in rows) else None,
-                    'prefill_effective_median_tps':statistics.median(x['prefill_effective_tps'] for x in rows),
+                    'prefill_effective_median_tps':None if a.warm_prefix else statistics.median(x['prefill_effective_tps'] for x in rows),
                     'decode_stream_median_tps':statistics.median(x['decode_stream_tps'] for x in rows if x['decode_stream_tps'] is not None) if any(x['decode_stream_tps'] is not None for x in rows) else None}
                 db=health_before.get('decode_active',{}); da=health_after.get('decode_active',{})
                 if db and da:

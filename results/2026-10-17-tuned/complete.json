@@ -1,0 +1,12 @@
+{
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "backend": "TensorFold",
+  "target_revision": "76348ddb2be2e35e39ecfc00e75dc07703f4f3d5",
+  "policy": "fnc7:0.3",
+  "timed_requests": 144,
+  "prefix_seeds": 72,
+  "completed": 1792269676.9438295,
+  "repeats": 1,
+  "decode": "warm-prefix; actual cache coverage and zero prefill work verified; full-burst client and active-round rates retained",
+  "prefill": "cold, one output token, no prefix-cache reuse"
+}

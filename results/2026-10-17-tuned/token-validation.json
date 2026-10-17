@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "sweep_hash_matches": 72,
+  "post_long_hash_matches": 26,
+  "pool_tokens": 1415168,
+  "baseline_policy_hash_matches": 78,
+  "rejected_graph_profile_policy_hash_matches": 78,
+  "scope": "Exact token hashes on these synthetic requests; not a general model-quality evaluation."
+}
