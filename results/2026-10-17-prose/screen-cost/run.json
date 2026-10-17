@@ -1,0 +1,22 @@
+{
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "workload": "general",
+  "policy": "fcost7:noisy",
+  "no_drafts": false,
+  "no_copy": false,
+  "warm_prefix": true,
+  "label": "cost",
+  "base": "http://127.0.0.1:8888",
+  "repeats": 1,
+  "thinking": "off",
+  "concurrency": "1,8",
+  "skip_warmup": true,
+  "input_lines": 32,
+  "output_tokens": 128,
+  "out": "screen-cost",
+  "serving": [
+    "nvidia/GLM-5.3-Flash-FP4-Local"
+  ],
+  "started": 1792275712.5533984,
+  "notes": "Cold requests have unique cache salts. Warm-prefix decode reuses the corresponding seed-request salt only for its paired timed request; its cached-input/TTFT ratios are omitted. Thinking on uses GLM native high effort. Client effective prefill includes scheduling and first-token work; decode uses completion usage minus one over first-to-last streamed delta. Speculative decoding may return multiple tokens in a delta. Backend metrics are saved separately."
+}

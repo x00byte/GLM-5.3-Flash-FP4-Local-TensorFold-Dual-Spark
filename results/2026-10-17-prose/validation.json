@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "timed_requests": 135,
+  "prefix_seeds": 135,
+  "six_policy_screen_hashes_match": true,
+  "full_sweep_off_hash_matches_previous_profile": 13,
+  "zero_timed_prefill": true,
+  "no_outside_timed_requests": true,
+  "all_outputs_at_requested_cap": true,
+  "high_effort_reasoning_chunks_verified": true,
+  "runtime_changes": false,
+  "scope": "One burst per concurrency/policy. Same prose prompt family, temperature zero. No model quality assessment; high-effort throughput includes reasoning tokens."
+}

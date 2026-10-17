@@ -1,0 +1,164 @@
+[
+  {
+    "phase": "off",
+    "thinking": "off",
+    "output_cap": 128,
+    "c": 1,
+    "decode_tps": 38.046268692983496,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "off",
+    "thinking": "off",
+    "output_cap": 128,
+    "c": 2,
+    "decode_tps": 66.32929356046046,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "off",
+    "thinking": "off",
+    "output_cap": 128,
+    "c": 3,
+    "decode_tps": 78.08458699901286,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "off",
+    "thinking": "off",
+    "output_cap": 128,
+    "c": 4,
+    "decode_tps": 98.68631870960812,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "off",
+    "thinking": "off",
+    "output_cap": 128,
+    "c": 5,
+    "decode_tps": 105.01214971638821,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "off",
+    "thinking": "off",
+    "output_cap": 128,
+    "c": 6,
+    "decode_tps": 136.79315212476834,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "off",
+    "thinking": "off",
+    "output_cap": 128,
+    "c": 7,
+    "decode_tps": 125.50505868558025,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "off",
+    "thinking": "off",
+    "output_cap": 128,
+    "c": 8,
+    "decode_tps": 140.04954945295407,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "high",
+    "thinking": "on",
+    "output_cap": 128,
+    "c": 1,
+    "decode_tps": 46.77873213758663,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "high",
+    "thinking": "on",
+    "output_cap": 128,
+    "c": 2,
+    "decode_tps": 69.14913971138903,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "high",
+    "thinking": "on",
+    "output_cap": 128,
+    "c": 3,
+    "decode_tps": 97.89886402953215,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "high",
+    "thinking": "on",
+    "output_cap": 128,
+    "c": 4,
+    "decode_tps": 102.75484530641535,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "high",
+    "thinking": "on",
+    "output_cap": 128,
+    "c": 5,
+    "decode_tps": 120.28035025776448,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "high",
+    "thinking": "on",
+    "output_cap": 128,
+    "c": 6,
+    "decode_tps": 122.5236376375313,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "high",
+    "thinking": "on",
+    "output_cap": 128,
+    "c": 7,
+    "decode_tps": 138.0329162566896,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "high",
+    "thinking": "on",
+    "output_cap": 128,
+    "c": 8,
+    "decode_tps": 144.08686251719277,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "long-off",
+    "thinking": "off",
+    "output_cap": 512,
+    "c": 1,
+    "decode_tps": 37.22923419049009,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  },
+  {
+    "phase": "long-off",
+    "thinking": "off",
+    "output_cap": 512,
+    "c": 8,
+    "decode_tps": 111.2964186559573,
+    "zero_timed_prefill": true,
+    "no_outside_timed_requests": true
+  }
+]

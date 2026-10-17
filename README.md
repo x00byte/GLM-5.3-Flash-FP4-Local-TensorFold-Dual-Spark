@@ -17,7 +17,7 @@ Tokens/s, same process and prompts; output hashes matched. [Raw paired measureme
 
 Separate **128-token**, isolated C8 confirmation bursts reached 339–342 tok/s, versus 213 with the original serving profile. General prose/code screens reached 140/152 tok/s at C8, versus 110/132 previously. Gains depend on workload and output length. [Comparisons and scope](results/2026-10-17-draft-tests/README.md).
 
-[Fresh C1–C8 thinking off/high decode and cold-prefill table](results/2026-10-17-adaptive/README.md). Best cold prefill in that sweep: **896 input tok/s**.
+[Fresh C1–C8 thinking off/high decode and cold-prefill table](results/2026-10-17-adaptive/README.md). [Prose C1–C8 thinking off/high and six-policy screen](results/2026-10-17-prose/README.md). Best cold prefill in that sweep: **896 input tok/s**.
 
 FP8 KV pool: **1,286,144 shared tokens**, eight slots; **262,144-token** per-request limit. Wider verification uses more buffer memory. [Configuration and cache tradeoff](docs/performance-tuning.md).
 
