@@ -1,0 +1,607 @@
+--- a/tensorfold/families/glm5_next/__init__.py
++++ b/tensorfold/families/glm5_next/__init__.py
+@@ -16,7 +16,7 @@
+ KERNEL_DEPENDENCIES = ("tensorfold.kernels.qwen.flash_next.v1.prefill_mm",)
+ KERNEL_VERSION = "v1"
+ # the storage formats each engine reads: MLX affine on a Mac; that or EXL3 routed experts on CUDA
+-QUANT_METHODS = {"mlx": ("mlx",), "cuda": ("mlx", "exl3")}
++QUANT_METHODS = {"mlx": ("mlx",), "cuda": ("mlx", "exl3", "modelopt")}
+ # the EXL3 variant the CUDA kernels read (4-bit trellis, the "mcg" codebook, routed experts only)
+ EXL3_VARIANT = {"bits": 4, "codebook": "mcg", "scope": "glm53_routed_experts_only"}
+ # buffers of 200 ops and 200 MB, so a prompt chunk's memory frees as it runs; no TF32: row kernels repeat fp32
+@@ -43,7 +43,10 @@
+     if want == "float32" and sys.platform != "darwin":
+         raise ValueError("tensorfold_activation_dtype float32 is the Mac engine; the CUDA engine stays bf16")
+     method = quant_method(config)
+-    if method == "exl3":
++    if method == "modelopt":
++        from .cuda.fp4_local import validate
++        validate(config)
++    elif method == "exl3":
+         # the CUDA engine's layout; the Mac engine refuses it before this through QUANT_METHODS (require_readable)
+         found = config.get("quantization_config") or config.get("quantization") or {}
+         got = {k: found.get(k) for k in EXL3_VARIANT}
+--- a/tensorfold/families/glm5_next/cuda/engine.py
++++ b/tensorfold/families/glm5_next/cuda/engine.py
+@@ -592,6 +592,9 @@
+         # TF_GLM_KVB=fp8/q4 (an EXL3 checkpoint, latent cache): kv_b as the absorb and expand kernels read it
+         kvb = kvb_kind() if cfg.quant == "exl3" and LATENT else "bf16"
+         weights_estimate = kvb_weights(weights_estimate, kvb)
++        if cfg.quant == "modelopt":
++            from .fp4_local import estimate
++            weights_estimate = estimate(lay)
+         # TF_GLM_KV=fp8: the DSA latent cache and the indexer's pooled keys as e4m3 rows (``kv8``), half the bytes
+         from .kv8 import KINDS as KV_KINDS, kv_kind
+ 
+@@ -638,7 +641,7 @@
+             g = mla_geometry(text, world, MAX_ROWS, share=share, minimum_slots=DENSE_CAPACITY, latent=LATENT,
+                              prefill_rows=prompt_buffer_rows,
+                              mtp=self.mtp_on, onepass=SPARSE_ONEPASS, exl3_prompt=prompt_kernels(),
+-                             prompt_split_k=cfg.quant == "exl3" and dense_kind() != "q4", kv=kv,
++                             prompt_split_k=cfg.quant == "modelopt" or (cfg.quant == "exl3" and dense_kind() != "q4"), kv=kv,
+                              decode_rows=multi_decode_rows(parallel, self.multi_window))
+             # --parallel: every stream slot past the first (KDA states, conv windows, window scratch); the batched
+             # verify window's buffers (TF_GLM_MULTI_WINDOW rows) beside the engine's own fit the decode rows the
+@@ -1022,7 +1025,7 @@
+     def _effective(self, code: list[int]) -> list[int]:
+         """Resolve auto and MTP policies to the available heads, using EXL3_AUTO for EXL3 with DFlash2 and DFlash2 when MTP is absent."""
+ 
+-        if code[0] == 4 and self.drafter is not None and self.w.cfg.quant == "exl3":
++        if code[0] == 4 and self.drafter is not None and self.w.cfg.quant in ("exl3", "modelopt"):
+             return encode_policy(EXL3_AUTO)
+         if self.w.mtp is None and code[0] in (1, 2, 3, 4, 5):
+             return encode_policy(DFLASH_POLICY) if code[0] in (4, 5) else [code[0] + 10] + code[1:]
+--- a/tensorfold/families/glm5_next/cuda/forward.py
++++ b/tensorfold/families/glm5_next/cuda/forward.py
+@@ -25,6 +25,8 @@
+     """Whether a prompt chunk's projections take split-K partials: an EXL3 checkpoint's BF16 / FP8 ones do; 4-bit
+     ones (an MLX checkpoint, TF_GLM_DENSE=q4, read off the first layer's input projection) run without."""
+ 
++    if w.cfg.quant == "modelopt":
++        return True
+     if w.cfg.quant != "exl3":
+         return False
+     first = next((l.kda.proj if l.kda is not None else l.dsa.proj for l in w.layers
+@@ -107,7 +109,7 @@
+         self.pick = torch.empty((rows, slots), dtype=torch.int32, device=dev)
+         self.wts = torch.empty((rows, slots), dtype=f32, device=dev)
+         self.eact = torch.empty((rows * slots, ml), dtype=bf, device=dev)
+-        exl3 = c.quant == "exl3"
++        exl3 = c.quant in ("exl3", "modelopt")
+         self.ey = torch.empty((rows, slots, D), dtype=bf if prefill and not exl3 else f32, device=dev)
+         self.exl3 = None
+         prompt = False
+@@ -117,13 +119,15 @@
+             prompt = prefill and prompt_kernels()
+             sl = tp.of(w).shared
+             self.exl3 = Scratch(rows, slots, D, ml, dev, prompt=prompt)
++        if c.quant in ("exl3", "modelopt"):
++            sl = tp.of(w).shared
+             self.sgu = torch.empty((rows, 2 * sl), dtype=bf, device=dev)
+             self.sact = torch.empty((rows, sl), dtype=bf, device=dev)
+             self.sxs = torch.empty((rows, sl // 64), dtype=f32, device=dev)
+             self.sy = torch.empty((rows, D), dtype=f32, device=dev)
+         # a prompt window's EXL3 experts take items of 64 pairs (the prompt kernels' pass), decode windows 16
+         self.plan = grouped.Plan(rows, slots, c.experts + 1, dev, prefill=prefill and (not exl3 or prompt),
+-                                 tile=prompt_pass() if prompt else None)
++                                 tile=16 if c.quant == "modelopt" else (prompt_pass() if prompt else None))
+         # rank partials
+         self.part = torch.empty((rows, D), dtype=f32, device=dev)
+         self.gath = torch.empty((w.world * rows * D,), dtype=f32, device=dev)
+@@ -441,6 +445,8 @@
+ def mm(b: Buffers, x: torch.Tensor, q, xs: torch.Tensor | None, out: torch.Tensor, f32: bool = False) -> torch.Tensor:
+     """A projection: 4-bit ones of a prompt chunk on the shared prefill matmul, the rest on ``qmm.matmul``."""
+ 
++    if hasattr(q, "matmul"):
++        return q.matmul(x, out=out, f32=f32, part=b.sk, prefill=b.prefill)
+     if b.prefill and isinstance(q, qmm.Q4):
+         return shared.prefill_matmul(x, q, f32=f32, out=out, tile=prompt_tile(x.shape[0], q.n, q.k))
+     return qmm.matmul(x, q, xs, out=out, f32=f32, part=b.sk)
+@@ -802,7 +808,12 @@
+             shared_front(layer, w, b, 0, R)
+             done = (0, R)
+         with prof.timed("moe: routed (exl3)"):
+-            exl3_mm.routed(b.normed[:R], b.pick, b.plan, m.experts, b.exl3, b.ey.view(-1, c.hidden), R, c.limit)
++            if c.quant == "modelopt":
++                from tensorfold.cuda.nvfp4 import experts as ne
++                ne.gate_up(b.normed[:R],m.experts,b.plan,b.eact,R,skip=c.experts)
++                ne.down(b.eact,m.experts,b.plan,b.ey.view(-1,c.hidden),R,skip=c.experts)
++            else:
++                exl3_mm.routed(b.normed[:R], b.pick, b.plan, m.experts, b.exl3, b.ey.view(-1, c.hidden), R, c.limit)
+ 
+         def fill(lo: int, hi: int) -> None:
+             for a, z in undone(hi, done):     # rows lo .. hi the front has not run on
+--- a/tensorfold/families/glm5_next/cuda/fp4_local.py
++++ b/tensorfold/families/glm5_next/cuda/fp4_local.py
+@@ -0,0 +1,248 @@
++"""Exact NVIDIA FP4-Local storage reader. Codes and scale bytes are never requantized.
++
++CSF32 layout follows FlashInfer-b12x loader/_csf_blocks.py's public logical
++format. This decoder expands its lossless palette/exception representation.
++"""
++from __future__ import annotations
++import json, math, re
++from dataclasses import dataclass, is_dataclass
++from functools import lru_cache
++from pathlib import Path
++import numpy as np
++import torch
++from . import qmm
++from .split import RankReader, read_header, rule, rank_cut
++from tensorfold.cuda.nvfp4 import linear as nv, experts as ne
++
++SUPPORTED = {"MXFP8", "FP8_PB_WO", "NVFP4", "W4A16_NVFP4"}
++CSF_PARTS = ("bases", "codes", "page_bases", "offsets", "exceptions")
++
++def validate(config):
++    q = config.get("quantization_config", {})
++    if q.get("quant_method") != "modelopt" or q.get("quant_algo") != "MIXED_PRECISION":
++        raise ValueError("FP4-Local loader requires ModelOpt MIXED_PRECISION")
++    layers=q.get("quantized_layers", {})
++    if not layers or {x.get("quant_algo") for x in layers.values()} - SUPPORTED:
++        raise ValueError("unsupported FP4-Local layer quantization")
++    for name, fmt in layers.items():
++        algo=fmt["quant_algo"]
++        if algo == "MXFP8" and fmt.get("weight_block_size", [1,fmt.get("group_size")]) != [1,32]:
++            raise ValueError(f"{name}: unsupported MXFP8 block")
++        if algo == "FP8_PB_WO" and fmt.get("weight_block_size") != [128,128]:
++            raise ValueError(f"{name}: unsupported FP8 block")
++        if algo in ("NVFP4","W4A16_NVFP4") and fmt.get("group_size",16) != 16:
++            raise ValueError(f"{name}: unsupported NVFP4 group")
++        if fmt.get("weight_scale_encoding") not in (None,"csf_32x2_v1"):
++            raise ValueError(f"{name}: unsupported scale encoding")
++
++@lru_cache(maxsize=32)
++def csf_geometry(rows, cols):
++    if rows % 32 or cols % 2: raise ValueError("CSF32 needs complete 32x2 blocks")
++    grid=np.arange(rows//32*(cols//2)).reshape(rows//32,cols//2)
++    chunks=[grid[r:r+4,c:c+2].T.reshape(-1) for r in range(0,grid.shape[0],4)
++            for c in range(0,grid.shape[1],2)]
++    order=np.concatenate(chunks)
++    inverse=np.argsort(order)
++    counts=np.array([len(c) for c in chunks])
++    pages=np.repeat(np.arange(len(chunks))//32,counts)
++    return order,inverse,np.arange(len(order))+pages
++
++def decode_csf(parts, rows, cols):
++    """Return the original row-major E4M3 scale bytes, including every exception."""
++    bases,codes,page_bases,offsets,exceptions=(np.asarray(p) for p in parts)
++    if bases.shape != (rows,) or codes.size*2 != rows*cols:
++        raise ValueError("invalid CSF32 palette/code geometry")
++    order,inverse,index=csf_geometry(rows,cols)
++    fields=np.empty(codes.size*2,dtype=np.uint8)
++    fields[0::2]=codes&15; fields[1::2]=codes>>4
++    logical=fields.reshape(-1,64)[inverse].reshape(rows//32,cols//2,32,2).transpose(0,2,1,3).reshape(rows,cols)
++    result=(bases[:,None]+logical).astype(np.uint8)
++    # A page holds an independent uint16 prefix, with one shared boundary
++    # per page. page_bases is the byte offset into the exception arena.
++    counts=offsets[index+1].astype(np.int64)-offsets[index].astype(np.int64)
++    if (counts < 0).any() or counts.sum() != exceptions.size:
++        raise ValueError("invalid CSF32 exception prefixes")
++    starts=np.r_[0,np.cumsum(counts)]
++    page_indices=np.arange(len(page_bases))*256
++    page_indices=page_indices[page_indices<len(order)]
++    if not np.array_equal(page_bases.astype(np.int64), starts[page_indices]*2):
++        raise ValueError("invalid CSF32 page bases")
++    rb=np.repeat(order,counts); local=exceptions.astype(np.int64)&255
++    if (local>=64).any(): raise ValueError("invalid CSF32 local position")
++    pos=(rb//(cols//2)*32+local//2)*cols+rb%(cols//2)*2+local%2
++    if pos.size and np.unique(pos).size != pos.size: raise ValueError("duplicate CSF32 exceptions")
++    result.reshape(-1)[pos]=(exceptions>>8).astype(np.uint8)
++    return result
++
++@dataclass
++class Mixed:
++    parts: list
++    @property
++    def n(self): return sum(p.n for p in self.parts)
++    @property
++    def k(self): return self.parts[0].k
++    def matmul(self,x,*,out=None,f32=False,part=None,prefill=False):
++        dtype=torch.float32 if f32 else torch.bfloat16
++        result=out if out is not None else torch.empty((x.shape[0],self.n),device=x.device,dtype=dtype)
++        offset=0
++        for p in self.parts:
++            dest=result[:,offset:offset+p.n]
++            if isinstance(p,qmm.B16):
++                value=qmm.matmul(x,p,out=dest if dest.is_contiguous() else None,f32=f32,part=part)
++            else:
++                mode={nv.Fp4Linear:0,nv.Fp8Linear:1,nv.Mx8Linear:2,nv.Fp8BlockLinear:3}[type(p)]
++                w=p.words if mode==0 else p.w8
++                bs=None if mode==1 else p.bs
++                scale=p.scale if mode in (0,1) else 1.0
++                # Prompt tensor cores preserve each decoded weight exactly for
++                # NVFP4/MXFP8. FP8 block scales require the FP32 lane kernel.
++                use_prompt=prefill and mode in (0,1,2) and x.shape[0]>=4 and p.npad%128==0
++                if mode==2: use_prompt=use_prompt and p.fold
++                if use_prompt:
++                    value=dest if dest.is_contiguous() else torch.empty((x.shape[0],p.n),device=x.device,dtype=dtype)
++                    nv._prompt_ext().prompt16(x,w,bs,float(scale),value,mode,p.n,p.npad,nv.PROMPT_TILE,f32)
++                else:
++                    from tensorfold.cuda.kernels import qmm as shared
++                    sk=shared.split_k(p.n,p.k)
++                    value=dest if dest.is_contiguous() else torch.empty((x.shape[0],p.n),device=x.device,dtype=dtype)
++                    scratch=None
++                    if sk>8:
++                        need=sk*x.shape[0]*p.n
++                        scratch=part.reshape(-1)[:need] if part is not None and part.numel()>=need else torch.empty((need,),device=x.device,dtype=torch.float32)
++                    nv._ext().qmmf(x,w,bs,float(scale),value,scratch,mode,p.n,sk,p.npad,shared.bucket(x.shape[0]),f32)
++            if value is not dest: dest.copy_(value)
++            offset+=p.n
++        return result
++
++class Reader(RankReader):
++    def __init__(self,model_dir,rank,world):
++        super().__init__(model_dir,rank,world)
++        raw=json.loads((Path(model_dir)/"config.json").read_text()); validate(raw)
++        self.formats=raw["quantization_config"]["quantized_layers"]
++    def fmt(self,name):
++        return self.formats.get(name) or self.formats.get(re.sub(r"\.experts\.\d+\.[^.]+$", ".experts",name))
++    def _span(self,name):
++        # Read quantized projections whole, then split codes and decoded scale
++        # planes in the same logical TP coordinates. Scalars stay replicated.
++        root=name.split(".weight")[0].removesuffix(".input_scale")
++        if self.fmt(root) is None: return super()._span(name)
++        file=str(self.dir/self.index[name])
++        if file not in self.files: self.files[file]=read_header(file)
++        h,base=self.files[file]; info=h[name]; a,b=info["data_offsets"]
++        return file,base+a,base+b,"rep",list(info["shape"]),info["dtype"],None
++    def cut(self,name,x):
++        kind=rule(name+".weight")
++        if name=="lm_head": a,b=self.layout.cut("vocab",x.shape[0]); return x[a:b].contiguous()
++        if kind=="rep": return x.contiguous()
++        axis=0 if kind=="row" else 1
++        cut=rank_cut(self.layout,name+".weight",list(x.shape),kind)
++        a,b=cut if cut else (self.rank*x.shape[axis]//self.world,(self.rank+1)*x.shape[axis]//self.world)
++        return (x[a:b] if axis==0 else x[:,a:b]).contiguous()
++    def scales4(self,name,rows,cols):
++        fmt=self.fmt(name)
++        if fmt.get("weight_scale_encoding")=="csf_32x2_v1":
++            parts=[self.get(name+".weight_scale.csf32_"+s).numpy() for s in CSF_PARTS]
++            return torch.from_numpy(decode_csf(parts,rows,cols))
++        return self.get(name+".weight_scale").view(torch.uint8)
++    def raw_linear(self,name):
++        fmt=self.fmt(name); w=self.get(name+".weight")
++        if fmt is None: return w,None,None,None
++        algo=fmt["quant_algo"]
++        if algo in ("NVFP4","W4A16_NVFP4"):
++            s=self.scales4(name,w.shape[0],w.shape[1]//8)
++            return self.cut(name,w),self.cut(name,s),float(self.get(name+".weight_scale_2").item()),algo
++        s=self.get(name+".weight_scale")
++        if algo=="FP8_PB_WO": s=nv.Fp8BlockLinear.column_scales(s.reshape((w.shape[0]+127)//128,w.shape[1]//128),*w.shape)
++        return self.cut(name,w),self.cut(name,s),None,algo
++    def linear(self,name,device):
++        w,s,g,algo=self.raw_linear(name)
++        w=w.to(device)
++        if s is not None: s=s.to(device)
++        if algo is None: return Mixed([qmm.make_b16(w)])
++        if algo in ("NVFP4","W4A16_NVFP4"): p=nv.Fp4Linear.from_checkpoint(w,s,g)
++        elif algo=="MXFP8":
++            p=nv.Mx8Linear.from_checkpoint(w,s)
++            p.fold=bool(((s>=3)&(s<=134)).all())
++        else: p=nv.Fp8BlockLinear.from_rows(w,s)
++        return Mixed([p])
++    def stack(self,names,device):
++        # Fuse adjacent projections with identical storage. All original code
++        # and scale bytes survive; only padding and fragment order change.
++        groups=[]
++        for name in names:
++            raw=self.raw_linear(name)
++            if groups and groups[-1][0][3]==raw[3] and raw[3] in (None,"MXFP8","FP8_PB_WO"):
++                groups[-1].append(raw)
++            else: groups.append([raw])
++        parts=[]
++        for group in groups:
++            algo=group[0][3]
++            w=torch.cat([x[0] for x in group]).to(device)
++            if algo is None: parts.append(qmm.make_b16(w)); continue
++            sc=torch.cat([x[1] for x in group]).to(device)
++            if algo=="MXFP8":
++                p=nv.Mx8Linear.from_checkpoint(w,sc)
++                p.fold=bool(((sc>=3)&(sc<=134)).all())
++            elif algo=="FP8_PB_WO": p=nv.Fp8BlockLinear.from_rows(w,sc)
++            else: p=nv.Fp4Linear.from_checkpoint(w,sc,group[0][2])
++            parts.append(p)
++        return Mixed(parts)
++    def dense(self,name,device):
++        w,s,g,algo=self.raw_linear(name)
++        w=w.to(device)
++        if algo is None: return w.to(torch.bfloat16)
++        if algo=="FP8_PB_WO": out=w.float()*s.to(device).repeat_interleave(64,dim=1)
++        elif algo=="MXFP8": out=w.float()*torch.ldexp(torch.ones_like(s,dtype=torch.float32,device=device),s.to(device).int()-127).repeat_interleave(32,dim=1)
++        else: raise ValueError("dense conversion only for the MLA FP8 absorb matrices")
++        return out.to(torch.bfloat16)
++    def experts(self,p,cfg,device):
++        e,n,d=cfg.experts,self.layout.moe,cfg.hidden
++        up=torch.empty((e,n//32,d//32,2,144),device=device,dtype=torch.int32)
++        down=torch.empty((e,d//32,n//32,1,144),device=device,dtype=torch.int32)
++        us=torch.empty((e,2),device=device,dtype=torch.float32)
++        ds=torch.empty((e,1),device=device,dtype=torch.float32)
++        # Four experts at a time bound both host read staging and GPU packing
++        # temporaries; the full layer never exists twice in GPU memory.
++        for e0 in range(0,e,4):
++            for j,proj in enumerate(("gate_proj","up_proj","down_proj")):
++                names=[p+f"experts.{x}.{proj}" for x in range(e0,min(e,e0+4))]
++                tensors=[z+s for z in names for s in ([".weight", ".weight_scale_2"] + ([".weight_scale.csf32_"+x for x in CSF_PARTS] if self.fmt(z).get("weight_scale_encoding") else [".weight_scale"]))]
++                self.prefetch(tensors)
++                raw=[self.raw_linear(z) for z in names]
++                words=torch.stack([x[0] for x in raw]).to(device)
++                scales=torch.stack([x[1] for x in raw]).to(device)
++                packed=ne.pack(words,scales,chunk=4)
++                if j<2:
++                    up[e0:e0+len(names),:,:,j]=packed
++                    us[e0:e0+len(names),j]=torch.tensor([x[2] for x in raw],device=device)
++                else:
++                    down[e0:e0+len(names),:,:,0]=packed
++                    ds[e0:e0+len(names),0]=torch.tensor([x[2] for x in raw],device=device)
++                del words,scales,packed,raw
++            # Synchronizing bounds host pinned staging on unified-memory GPUs.
++            torch.cuda.current_stream().synchronize()
++        return ne.Experts4(up,down,us,ds,n,d,cfg.limit)
++
++def estimate(lay):
++    def transform(name,info):
++        if name.startswith("model.visual."): return 0,0
++        if ".input_scale" in name or ".weight_scale" in name: return 0,0
++        shape=list(info["shape"]); dtype=info["dtype"]
++        if ".mlp.experts." in name and name.endswith(".weight"):
++            # packed codes plus all expanded scale bytes, 576 bytes per 32x32
++            return math.prod(shape)*9//8//lay.world+4,0
++        kind=rule(name)
++        if name=="lm_head.weight": shape[0]=lay.vocab
++        elif kind!="rep":
++            axis=0 if kind=="row" else 1
++            a,b=rank_cut(lay,name,shape,kind) or (0,shape[axis]//lay.world)
++            shape[axis]=b-a
++        count=math.prod(shape)
++        if dtype=="F8_E4M3":
++            if "kv_b_proj" in name: return count*2,0
++            return math.ceil(shape[0]/128)*128*shape[1]*17//16 + (count*9//16 if name=="lm_head.weight" else 0),0
++        if dtype=="U8": return count*9//8,0
++        size={"BF16":2,"F16":2,"F32":4,"U8":1,"U32":4,"U16":2}.get(dtype)
++        if size is None: raise ValueError(f"unknown weight dtype {dtype}")
++        return count*size,0
++    return transform
+--- a/tensorfold/families/glm5_next/cuda/multi.py
++++ b/tensorfold/families/glm5_next/cuda/multi.py
+@@ -550,6 +550,11 @@
+         self.rank = engine.rank
+         self.kept_bytes_cap = KEPT_BYTES_CAP     # ours: what the kept states own outside the pool, together
+         self.count = streams
++        # Wall time spent inside decode rounds, separated from prompt forwards.
++        # No extra GPU synchronization and no per-token logging in this path.
++        self.decode_active = {c:{"seconds":0.,"tokens":0,"rounds":0} for c in range(1,streams+1)}
++        self.prefill_active_seconds = 0.
++        self.prefill_active_tokens = 0
+         if e.slots.count < streams:
+             raise ValueError(f"the engine holds {e.slots.count} stream slots, not {streams}")
+         self.window = int(window if window is not None else getattr(engine, "multi_window", MAX_WINDOW))
+@@ -649,7 +654,10 @@
+ 
+     def health(self) -> dict:
+         lanes = list(self.lanes.values())
+-        return {"streams": {"decoding": sum(l.decoding and not l.paused for l in lanes),
++        return {"decode_active": {str(c):dict(v) for c,v in self.decode_active.items()},
++                "prefill_active_seconds_total": self.prefill_active_seconds,
++                "prefill_active_tokens_total": self.prefill_active_tokens,
++                "streams": {"decoding": sum(l.decoding and not l.paused for l in lanes),
+                             "filling": sum(not l.decoding for l in lanes),
+                             "paused": sum(l.decoding and l.paused for l in lanes)},
+                 "pool_tokens": self.pool.rows, "pool_free_tokens": self.pool.free_rows(),
+@@ -1813,7 +1821,14 @@
+                 t0 = time.perf_counter()
+                 self._behind()
+                 self.disk.stats.behind_s += time.perf_counter() - t0
+-            return self._iterate()
++            started = time.perf_counter()
++            before = [(l,l.st.pos) for l in self.lanes.values() if not l.decoding]
++            rounds_before = sum(v["rounds"] for v in self.decode_active.values())
++            result = self._iterate()
++            if self.rank == 0 and before and sum(v["rounds"] for v in self.decode_active.values()) == rounds_before:
++                self.prefill_active_seconds += time.perf_counter()-started
++                self.prefill_active_tokens += sum(max(0,l.st.pos-pos) for l,pos in before)
++            return result
+         except Exception as exc:
+             self._break(exc)
+             raise
+@@ -2195,6 +2210,22 @@
+ 
+     @torch.no_grad()
+     def _round(self, lanes: list[Lane], depths: list[int] | None = None, lone: bool = False,
++               short: bool = False) -> None:
++        if self.rank != 0:
++            return self._round_impl(lanes,depths,lone,short)
++        before=[len(l.s.out) for l in lanes]
++        started=time.perf_counter()
++        self._round_impl(lanes,depths,lone,short)
++        elapsed=time.perf_counter()-started
++        stat=self.decode_active[len(lanes)]
++        stat["seconds"]+=elapsed
++        stat["tokens"]+=sum(len(l.s.out)-n for l,n in zip(lanes,before))
++        stat["rounds"]+=1
++        for l,n in zip(lanes,before):
++            l.s.decode_active_seconds=getattr(l.s,"decode_active_seconds",0.)+elapsed
++            l.s.decode_active_tokens=getattr(l.s,"decode_active_tokens",0)+len(l.s.out)-n
++
++    def _round_impl(self, lanes: list[Lane], depths: list[int] | None = None, lone: bool = False,
+                short: bool = False) -> None:
+         """Both ranks: one decode round over ``lanes`` (``depths``: rank 0's, checked on rank 1); ``lone``: one
+         stream at home, verified through the one-stream graphs when its window fits them. ``short``: between fill
+@@ -2446,6 +2477,8 @@
+         """A finished request's stats (as ``GlmEngine.generate`` reports them)."""
+ 
+         out = s.stats()
++        out["decode_active_s"] = getattr(s,"decode_active_seconds",0.)
++        out["decode_active_tokens"] = getattr(s,"decode_active_tokens",0)
+         out["decode_s"] = round(max((s.finished or time.perf_counter()) - s.started, 0.0), 4)
+         tokens = list(s.out[:s.count])
+         out.update(sha256=hashlib.sha256(json.dumps(tokens).encode()).hexdigest()[:16],
+--- a/tensorfold/families/glm5_next/cuda/qmm.py
++++ b/tensorfold/families/glm5_next/cuda/qmm.py
+@@ -335,6 +335,8 @@
+            f32: bool = False, part: torch.Tensor | None = None) -> torch.Tensor:
+     """Multiply strided bf16 x by Q4, BF16 or FP8 q.T, returning bf16 or unrounded fp32 with f32; BF16 and FP8 weights ignore xs."""
+ 
++    if hasattr(q, "matmul"):
++        return q.matmul(x, out=out, f32=f32, part=part)
+     if isinstance(q, B16):
+         return _matmul_b16(x, q, out=out, f32=f32, part=part)
+     if isinstance(q, F8):
+--- a/tensorfold/families/glm5_next/cuda/split.py
++++ b/tensorfold/families/glm5_next/cuda/split.py
+@@ -39,7 +39,7 @@
+ GAP = 1 << 20            # most unused bytes such a read spans between two tensors (more reads other layers twice)
+ READERS = 8              # reads in flight: past this the layers are built slower than they are read
+ DTYPE_BYTES = {"U32": 4, "I32": 4, "F32": 4, "BF16": 2, "F16": 2, "I16": 2, "U16": 2, "U8": 1, "I8": 1, "I64": 8,
+-               "F64": 8}
++               "F64": 8, "F8_E4M3": 1}
+ # the files a rank folder needs besides its weights (the tokenizer, chat template and configs)
+ SMALL = ("config.json", "generation_config.json", "tokenizer.json", "tokenizer_config.json", "chat_template.jinja",
+          "processor_config.json", "model.safetensors.index.json")
+@@ -156,7 +156,7 @@
+ 
+     return {"U32": torch.uint32, "I32": torch.int32, "F32": torch.float32, "BF16": torch.bfloat16, "F16": torch.float16,
+             "I16": torch.int16, "U16": torch.uint16, "U8": torch.uint8, "I8": torch.int8, "I64": torch.int64,
+-            "F64": torch.float64}[dtype]
++            "F64": torch.float64, "F8_E4M3": torch.float8_e4m3fn}[dtype]
+ 
+ 
+ def rank_files(model_dir: str | Path, rank: int) -> list[Path]:
+--- a/tensorfold/families/glm5_next/cuda/weights.py
++++ b/tensorfold/families/glm5_next/cuda/weights.py
+@@ -4,7 +4,7 @@
+ 
+ import json
+ import os
+-from dataclasses import dataclass, field
++from dataclasses import dataclass, field, is_dataclass
+ from functools import lru_cache
+ from pathlib import Path
+ from typing import Any
+@@ -260,6 +260,9 @@
+             if isinstance(t, torch.Tensor) and t.data_ptr() not in seen:
+                 seen.add(t.data_ptr())
+                 total += t.numel() * t.element_size()
++            elif is_dataclass(t):
++                for v in vars(t).values():
++                    add(v)
+             elif isinstance(t, (Q4, B16, F8, grouped.Experts, Exl3Experts, HCW, KDAW, DSAW, MLPW, MoEW, LayerW, MTPW,
+                                 IndexW, latent.AbsorbW, latent.AbsorbQ4, latent.AbsorbF8)):
+                 for v in vars(t).values():
+@@ -289,11 +292,16 @@
+ 
+     cfg = Config.read(model_dir)
+     lay = Layout.from_config(cfg, rank, world)
+-    if cfg.quant not in ("mlx", "exl3"):
++    modelopt = cfg.quant == "modelopt"
++    if cfg.quant not in ("mlx", "exl3", "modelopt"):
+         raise ValueError(f"GLM-5.3-Flash's CUDA engine reads MLX 4-bit or EXL3 checkpoints, not {cfg.quant}")
+     exl3 = cfg.quant == "exl3"
+     dev = torch.device(device)
+-    rd = RankReader(model_dir, rank, world)
++    if modelopt:
++        from .fp4_local import Reader, Mixed
++        rd = Reader(model_dir, rank, world)
++    else:
++        rd = RankReader(model_dir, rank, world)
+     HL = lay.heads
+     LL = lay.lin_heads
+ 
+@@ -319,9 +327,11 @@
+     kvb = kvb_kind() if exl3 else "bf16"         # an MLX checkpoint's kv_b is 4-bit as stored
+ 
+     def q4(name: str) -> Q4 | B16 | F8:
+-        return big(t(name + ".weight")) if exl3 else make_q4(*trip(name))
++        return rd.linear(PREFIX+name,dev) if modelopt else (big(t(name + ".weight")) if exl3 else make_q4(*trip(name)))
+ 
+     def stack(names: list[str]) -> Q4 | B16 | F8:
++        if modelopt:
++            return rd.stack([PREFIX+n for n in names],dev)
+         if exl3:
+             return big_stack([t(n + ".weight") for n in names])
+         return stack_q4([trip(n) for n in names])
+@@ -345,7 +355,11 @@
+         # the latent path reads kv_b only through ``absorb``: the per-head key and value matrices (kv_k, kv_v) exist
+         # only without it (TF_GLM_LATENT=0), so they take no memory beside it
+         kv_k = kv_v = None
+-        if exl3:
++        if modelopt:
++            w = rd.dense(PREFIX+p+"kv_b_proj",dev)
++            if not latent.ENABLED:
++                kv_k, kv_v = dense(w[krows]), dense(w[vrows])
++        elif exl3:
+             w = t(p + "kv_b_proj.weight")
+             if not latent.ENABLED:
+                 kv_k, kv_v = dense(w[krows]), dense(w[vrows])
+@@ -356,6 +370,8 @@
+                 kv_v = make_q4(w[vrows], s[vrows], b[vrows])
+         if not latent.ENABLED:
+             absorb = None
++        elif modelopt:
++            absorb = latent.AbsorbW.from_rows(w[krows],w[vrows],HL)
+         elif exl3:                        # TF_GLM_KVB: bf16 as stored, or fp8 / q4 (lossy, half / a quarter the bytes)
+             absorb = latent.from_bf16(w[krows], w[vrows], HL, kvb)
+         elif cfg.group_size == 64:        # the checkpoint's own 4-bit rows, read as they are stored
+@@ -416,6 +432,8 @@
+         p = f"layers.{i}.mlp."
+         router = t(p + "gate.weight", torch.bfloat16).contiguous()
+         bias = t(p + "gate.e_score_correction_bias", torch.float32).contiguous()
++        if modelopt:
++            return MoEW(router,bias,rd.experts(PREFIX+p,cfg,dev),mlp(p+"shared_experts."))
+         if exl3:
+             return MoEW(router, bias, moe_exl3(p), mlp(p + "shared_experts."))
+         parts = {}
+@@ -442,8 +460,8 @@
+         if len(layer_events) >= 2:                       # at most two layers queued ahead of the GPU
+             layer_events.pop(0).synchronize()
+         up = None if exl3 else dev                       # MLX experts come uploaded (EXL3's are unpacked on the host)
+-        rd.prefetch(expert_names(i), up)                 # already queued, except for the first layer
+-        rd.prefetch(expert_names(i + 1), up)             # two layers in flight: reads overlap copies and packing
++        if not modelopt: rd.prefetch(expert_names(i), up)                 # already queued, except for the first layer
++        if not modelopt: rd.prefetch(expert_names(i + 1), up)             # two layers in flight: reads overlap copies and packing
+         lw = LayerW(i, kind, None if plain else hc(i, "attn"), None if plain else hc(i, "ffn"),
+                     t(f"layers.{i}.input_layernorm.weight"), t(f"layers.{i}.post_attention_layernorm.weight"))
+         if kind == "kda":
+@@ -457,9 +475,10 @@
+         if i % 8 == 7:                            # each release waits for the device; a layer leaves few temporaries
+             torch.cuda.empty_cache()
+         layer_events.append(torch.cuda.current_stream().record_event())
++        print(f"[FP4-Local rank {rank}] loaded layer {i}",flush=True) if modelopt else None
+         return lw
+ 
+-    if exl3:
++    if exl3 or modelopt:
+         embed = rd.get(PREFIX + "embed_tokens.weight").to(torch.bfloat16).contiguous().to(dev)
+     else:
+         embed = (as_i32(rd.get(PREFIX + "embed_tokens.weight")).to(dev), rd.get(PREFIX + "embed_tokens.scales").to(dev),
+@@ -469,7 +488,14 @@
+         built = [layer(i) for i in which]
+         v0, v1 = lay.vocab_offset, lay.vocab_offset + lay.vocab
+         draft_head = None
+-        if exl3:
++        if modelopt:
++            head = rd.linear("lm_head",dev)
++            # Proposal-only head: target verification retains the stored MXFP8
++            # bytes. Every proposed token is checked against that target.
++            raw_head = rd.dense("lm_head",dev)
++            draft_head = draft_quantize4(raw_head)
++            del raw_head
++        elif exl3:
+             raw = rd.get("lm_head.weight")[v0:v1].to(dev)
+             head = dense(raw)
+             # Draft steps use a 4-bit copy (TF_GLM_DRAFT_QUANT: minmax or mse ranges); verification keeps the head.
+--- a/tensorfold/server/metrics.py
++++ b/tensorfold/server/metrics.py
+@@ -213,6 +213,12 @@
+     for name, kind, help_text in _HEALTH_TOTALS:
+         if isinstance(body.get(name), (int, float)):
+             _family(lines, name, kind, help_text, [f"{HEALTH}{name} {_num(body[name])}"], HEALTH)
++    for suffix,field in (("seconds_total","seconds"),("tokens_total","tokens"),("rounds_total","rounds")):
++        rows=[f'{HEALTH}decode_active_{suffix}{{concurrency="{c}"}} {_num(v[field])}'
++              for c,v in sorted((body.get("decode_active") or {}).items())]
++        if rows: _family(lines,"decode_active_"+suffix,"counter","Decode round work, excludes all prefill forwards.",rows,HEALTH)
++    for name in ("prefill_active_seconds_total","prefill_active_tokens_total"):
++        if name in body: _family(lines,name,"counter","Prompt forward work, excludes decode rounds.",[f"{HEALTH}{name} {_num(body[name])}"],HEALTH)
+     streams = dict(body.get("streams") or {})
+     if "max" in streams:
+         body["streams_max"] = streams.pop("max")

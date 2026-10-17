@@ -1,0 +1,29 @@
+GLM-5.3-Flash-FP4-Local TensorFold Dual Spark recipe
+
+This recipe adds a TensorFold storage reader for NVIDIA's FP4-Local mixed
+checkpoint, lossless CSF32 expert-scale expansion, fused compatible dense
+projections, a proposal-only Q4 head and decode/prefill work counters.
+
+The patches modify TensorFold and the MiaAI-Lab GLM Spark runtime. Their
+copyright, Apache-2.0 and earlier MIT notices are retained in
+third_party/MiaAI-NOTICE.txt and third_party/Apache-2.0.txt. The original
+runtime credits are preserved in third_party/MiaAI-CREDITS.md. The thirteen
+Bespoke patches are backports from the MiaAI-Lab project's pull requests;
+their origin and commit identifiers are recorded in provenance.json.
+
+The CSF32 decoder follows the lossless scale-plane layout implemented by
+FlashInfer/b12x (Apache-2.0):
+https://github.com/flashinfer-ai/flashinfer/tree/main/flashinfer/experimental/b12x
+The GPU NVFP4, MXFP8 and FP8 kernels are TensorFold's existing kernels.
+
+The TensorFold logo used as the cover reference belongs to the TensorFold
+project. The cover depicts this independent recipe and implies no vendor
+or upstream endorsement.
+
+Model weights and container binaries are not included. NVIDIA's target
+checkpoint uses the NVIDIA Open Model Agreement. IncoAI's DFlash2 checkpoint
+uses CC BY-NC-ND 4.0; the measured speculative configuration is non-commercial.
+The pinned base container retains its NVIDIA and third-party software terms.
+
+No new project-wide license has been assigned to the owner's original
+recipe files. Third-party code and notices retain their applicable terms.

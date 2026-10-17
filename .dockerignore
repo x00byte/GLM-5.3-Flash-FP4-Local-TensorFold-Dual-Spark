@@ -1,0 +1,7 @@
+**
+!Dockerfile
+!patches/
+!patches/**
+!target-manifest.json
+!scripts/
+!scripts/verify_snapshot.py

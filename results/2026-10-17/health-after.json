@@ -1,0 +1,128 @@
+{
+  "ok": true,
+  "backend": "tensorfold",
+  "busy": false,
+  "requests_running": 0,
+  "requests_total": 256,
+  "prompt_tokens_total": 165762,
+  "completion_tokens_total": 5952,
+  "prefill_seconds_total": 362.2168,
+  "decode_seconds_total": 255.6441,
+  "cached_tokens_total": 59176,
+  "rounds_total": 1894,
+  "drafted_total": 4926,
+  "accepted_total": 3802,
+  "streams": {
+    "decoding": 0,
+    "prefilling": 0,
+    "max": 8,
+    "filling": 0,
+    "paused": 0
+  },
+  "decode_active": {
+    "1": {
+      "seconds": 8.061751766712405,
+      "tokens": 364,
+      "rounds": 142
+    },
+    "2": {
+      "seconds": 6.375416507944465,
+      "tokens": 481,
+      "rounds": 82
+    },
+    "3": {
+      "seconds": 5.251737234997563,
+      "tokens": 471,
+      "rounds": 51
+    },
+    "4": {
+      "seconds": 7.434279802895617,
+      "tokens": 760,
+      "rounds": 65
+    },
+    "5": {
+      "seconds": 5.582931859185919,
+      "tokens": 655,
+      "rounds": 41
+    },
+    "6": {
+      "seconds": 7.164613718981855,
+      "tokens": 931,
+      "rounds": 50
+    },
+    "7": {
+      "seconds": 6.696080025867559,
+      "tokens": 944,
+      "rounds": 42
+    },
+    "8": {
+      "seconds": 7.685173305799253,
+      "tokens": 1090,
+      "rounds": 47
+    }
+  },
+  "prefill_active_seconds_total": 118.12639799056342,
+  "prefill_active_tokens_total": 106586,
+  "pool_tokens": 610304,
+  "pool_free_tokens": 593920,
+  "kept_prompts": 8,
+  "chats_continued": 0,
+  "chats_continued_prefill_tokens": 0,
+  "kept_bytes": 646020200,
+  "kept_bytes_cap": 0,
+  "kept_mix": {
+    "own": 8,
+    "shared": 0,
+    "chats": 8,
+    "rows": 5299,
+    "by_chat": [
+      [
+        160,
+        1,
+        665
+      ],
+      [
+        161,
+        1,
+        661
+      ],
+      [
+        162,
+        1,
+        660
+      ],
+      [
+        163,
+        1,
+        661
+      ],
+      [
+        164,
+        1,
+        665
+      ],
+      [
+        165,
+        1,
+        665
+      ],
+      [
+        166,
+        1,
+        662
+      ],
+      [
+        159,
+        1,
+        660
+      ]
+    ]
+  },
+  "multi_prefill": {
+    "chunks": 53,
+    "pieces": 171,
+    "rows": 95946
+  },
+  "iteration_s": 0.0,
+  "context_length": 262144
+}

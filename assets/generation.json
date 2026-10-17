@@ -1,0 +1,6 @@
+{
+  "method": "built-in imagegen",
+  "reference": "https://github.com/ashhart/TensorFold/blob/6ee828c24bf802cdd73507d6fc60bb27a82c0d66/assets/tensorfold-logo.png",
+  "asset": "cover.png",
+  "purpose": "independent GLM-5.3-Flash FP4 Local TensorFold recipe cover"
+}

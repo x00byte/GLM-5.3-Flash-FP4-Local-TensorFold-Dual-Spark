@@ -1,0 +1,75 @@
+# PR #136 rebased on PR #128 (both behaviours retained).
+--- tensorfold/families/glm5_next/cuda/multi.py
++++ tensorfold/families/glm5_next/cuda/multi.py
+@@ -235,9 +235,10 @@
+     prompts are prefixes of its rows, so one shorter than another in its extent is an earlier point of that
+     conversation, superseded by the longer one: the oldest of those goes first, then the least recently used of any.
+     A conversation taking many turns thus drops its own earlier turns instead of the only state of a conversation
+-    that is waiting on a long reply. A shared-prefix state (a system block, where prompts stop sharing) is never
+-    dropped as superseded: it is what the next conversation or run with that prefix resumes from, and its writer's
+-    longer state cannot serve them, so it goes by recency only, with the other conversations' latest states.
++    that is waiting on a long reply. A shared-prefix state (a system block: where prompts stop sharing, or where a
++    second conversation went on from a kept state, ``forks``) is never dropped as superseded: it is what the next
++    conversation or run with that prefix resumes from, and its writer's longer state cannot serve them, so it goes by
++    recency only, with the other conversations' latest states.
+     Deterministic in ``kept``'s order and extents, so both ranks drop the same one."""
+ 
+     longest: dict[int, int] = {}
+@@ -247,6 +248,18 @@
+         if len(c.ids) < longest[id(c.extent)] and not getattr(c, "shared", False):
+             return c
+     return kept[0]
++
++
++FORK_SPAN = 64                         # the ids past a kept state that tell one line from another there (``forks``)
++
++
++def forks(after, ids) -> bool:
++    """Two lines past a kept state part: ``after`` (the ids that followed it on the first prompt that wrote or resumed
++    it, up to FORK_SPAN) and ``ids`` (another prompt's) differ where both have ids. Nothing on either side: unknown,
++    False. A conversation's next turn goes on as its last prompt did; another conversation forked there."""
++
++    m = min(len(after), len(ids))
++    return m > 0 and tuple(after[:m]) != tuple(ids[:m])
+ 
+ 
+ # a conversation's first reply: the tokens of it a later prompt must repeat to continue that conversation
+@@ -1020,6 +1033,21 @@
+         code = a["code"]
+         dflash = code[0] >= 10 and self.drafts is not None
+         policy = decode_policy(code, g.costs) if code[0] else None
++        # A prompt that goes on past its kept state otherwise than the prompt that wrote it forked there from another
++        # conversation: that state is a shared prefix (a system block) for every later conversation too. Unflagged, a
++        # longer state in its extent (its writer's, or this stream's after a takeover) made it "superseded", and past
++        # TF_GLM_CACHE_ENTRIES cap_victim dropped it at the next keep, so the third conversation on a system prompt
++        # read it whole again (#121). Flagged before the chain below: it is no conversation's own turn state any more
++        # (TF_GLM_KEEP_PER_CHAT), and this stream starts a chain of its own. A conversation resuming its own turn goes
++        # on as its writer did: unchanged. A state its writer's prompt ended at takes the line of the first stream that
++        # goes on from it. Both ranks see the same ids (with pictures: their keyed ids), so they decide alike.
++        if hit is not None:
++            line = tuple((a["keyed"] if a.get("keyed") is not None else prompt)[cut:cut + FORK_SPAN])
++            after = getattr(hit, "after", None) or ()
++            if not after:
++                hit.after = line
++            elif forks(after, line):
++                hit.shared, hit.own = True, False
+         # the conversation this stream belongs to: the chain it resumed from when that state is a turn's own; else the
+         # one whose own state it still repeats past that conversation's first reply (it rewound before its kept turns,
+         # or resumed from a shared prefix, from disk or from nothing: continued_chat); else a new one
+@@ -1148,8 +1176,15 @@
+         snap.extent = lane.extent
+         snap.shared = n in lane.shared
+         snap.own, snap.chat = bool(own), int(lane.chat)
+-        # the same ids: the same prompt, unless pictures are in it (rank 1 has no keys; rank 0 resumes by key)
++        # how the prompt that wrote it goes on from here (both ranks): a prompt resuming here that goes on otherwise
++        # forked from it (``_admitted``)
++        snap.after = tuple((lane.key if lane.images and lane.key is not None else lane.s.prompt)[n:n + FORK_SPAN])
++        # the same ids: the same prompt, unless pictures are in it (rank 1 has no keys; rank 0 resumes by key). The new
++        # state takes the dropped one's place: a shared prefix stays one, and one two prompts wrote going on differently
++        # (two conversations that prefilled one system block at the same time) becomes one
+         for c in [c for c in self.kept if c.ids == snap.ids and not (c.images or snap.images)]:
++            if getattr(c, "shared", False) or forks(getattr(c, "after", None) or (), snap.after):
++                snap.shared, snap.own = True, False
+             self._drop(c, spill=False)
+         lane.extent.kept.append(snap)
+         self.kept.append(snap)

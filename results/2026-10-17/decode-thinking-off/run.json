@@ -1,0 +1,21 @@
+{
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "policy": "fnc7:0.3",
+  "no_drafts": false,
+  "warm_prefix": true,
+  "label": "glm53-fp4-local-tensorfold",
+  "base": "http://127.0.0.1:8888",
+  "repeats": 1,
+  "thinking": "off",
+  "concurrency": "1,2,3,4,5,6,7,8",
+  "skip_warmup": true,
+  "input_lines": 27,
+  "output_tokens": 64,
+  "out": "decode-thinking-off",
+  "tensorfold_log": null,
+  "serving": [
+    "nvidia/GLM-5.3-Flash-FP4-Local"
+  ],
+  "started": 1792267515.5466678,
+  "notes": "Every request has a unique cache_salt to prevent kept-prefix reuse. Thinking on uses GLM native high effort. Client effective prefill includes scheduling and first-token work; decode uses completion usage minus one over first-to-last streamed delta. Speculative decoding may return multiple tokens in a delta. Backend metrics are saved separately."
+}

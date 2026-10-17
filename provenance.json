@@ -1,0 +1,114 @@
+{
+  "base_image": "ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf",
+  "base_project": "https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold",
+  "base_project_commit": "3fd60dfc836fab0f1ed0fd4f0afaf2a1d62b2aab",
+  "tensorfold_source_commit": "c4646171139ee8a3c38103eaa1699dad226ec12b",
+  "tensorfold_version": "0.6.0",
+  "target": {
+    "repo": "nvidia/GLM-5.3-Flash-FP4-Local",
+    "revision": "76348ddb2be2e35e39ecfc00e75dc07703f4f3d5",
+    "bytes": 177519524972,
+    "indexed_weight_files": 42
+  },
+  "drafter": {
+    "repo": "incoai/GLM-5.3-Flash-DFlash2",
+    "revision": "bf582e4eacc1810f76656d1811693ff6c6737d2a",
+    "license": "CC-BY-NC-ND-4.0"
+  },
+  "backports": [
+    {
+      "pr": 128,
+      "source_patch": "0111-glm-chat-continued.patch",
+      "local_patch": "0200-bespoke-pr128-glm-chat-continued.patch",
+      "sha": "74b849d9b072ffc7b270277baf07e77c87782d6c"
+    },
+    {
+      "pr": 136,
+      "source_patch": "0113-glm-fork-point-shared.patch",
+      "local_patch": "0201-bespoke-pr136-glm-fork-point-shared.patch",
+      "sha": "c100968fb6dd2ae0e907b718bc4c96362bcc8618"
+    },
+    {
+      "pr": 144,
+      "source_patch": "0117-glm-cache-salt.patch",
+      "local_patch": "0202-bespoke-pr144-glm-cache-salt.patch",
+      "sha": "2fa8baa6f3ff10adbfd5303d0933d7a9d9ecf36f"
+    },
+    {
+      "pr": 146,
+      "source_patch": "0109-glm-broken-health-exit.patch",
+      "local_patch": "0203-bespoke-pr146-glm-broken-health-exit.patch",
+      "sha": "c30e3f1736350390dce867574a406b78e035e058"
+    },
+    {
+      "pr": 149,
+      "source_patch": "0119-cuda-budget-parked-pages.patch",
+      "local_patch": "0204-bespoke-pr149-cuda-budget-parked-pages.patch",
+      "sha": "2d71737e909dace116bf69606ae7cd0adaf40a24"
+    },
+    {
+      "pr": 156,
+      "source_patch": "0120-glm-kept-reasoning-linear.patch",
+      "local_patch": "0205-bespoke-pr156-glm-kept-reasoning-linear.patch",
+      "sha": "727ebfb468642e348b607127ea3e4a62d06cbfc4"
+    },
+    {
+      "pr": 135,
+      "source_patch": "0112-server-sse-keepalive.patch",
+      "local_patch": "0206-bespoke-pr135-server-sse-keepalive.patch",
+      "sha": "90ccb49215d58161f9c6017e9106aeecc45fe762"
+    },
+    {
+      "pr": 157,
+      "source_patch": "0121-http-get-delete-body-discard.patch",
+      "local_patch": "0207-bespoke-pr157-http-get-delete-body-discard.patch",
+      "sha": "48441cd8d678c434b0ecb74ef3e7356e174770d3"
+    },
+    {
+      "pr": 134,
+      "source_patch": "0112-glm-tool-tag-mention.patch",
+      "local_patch": "0208-bespoke-pr134-glm-tool-tag-mention.patch",
+      "sha": "bb57cd5bdc666ec497e66b9cedc9da0456e998c8"
+    },
+    {
+      "pr": 158,
+      "source_patch": "0110-glm-tool-envelope-values.patch",
+      "local_patch": "0209-bespoke-pr158-glm-tool-envelope-values.patch",
+      "sha": "029a852f14bcf604ffe9a55bfbd6ce7f50ec57be"
+    },
+    {
+      "pr": 140,
+      "source_patch": "0113-glm-unoffered-tool-call.patch",
+      "local_patch": "0210-bespoke-pr140-glm-unoffered-tool-call.patch",
+      "sha": "5b2a5c5e21185de3a5f1305f44d2efe31d67f170"
+    },
+    {
+      "pr": 164,
+      "source_patch": "0122-glm-literal-added-tokens.patch",
+      "local_patch": "0211-bespoke-pr164-glm-literal-added-tokens.patch",
+      "sha": "2636c1cb3019ede4ab27191299d5ad6843344942"
+    },
+    {
+      "pr": 167,
+      "source_patch": "0109-responses-tool-image.patch",
+      "local_patch": "0212-bespoke-pr167-responses-tool-image.patch",
+      "sha": "8962c2140754ae1a1ade22ca47961643498d2670"
+    }
+  ],
+  "patch_sha256": {
+    "patches/bespoke/0200-bespoke-pr128-glm-chat-continued.patch": "d812d6b69b3fa5a3db1b6eca6d2bf98a6eef1197b5fb85eee6ef8cd6bd43ee26",
+    "patches/bespoke/0201-bespoke-pr136-glm-fork-point-shared.patch": "f884c86bde498c9a44b879d3503031e28c7888ee39654cd4b94a98e6035c4674",
+    "patches/bespoke/0202-bespoke-pr144-glm-cache-salt.patch": "f1b0b4e4797328fdddd5055a05a51453ef000adc7ea173060a2bd0cd79a33a28",
+    "patches/bespoke/0203-bespoke-pr146-glm-broken-health-exit.patch": "e0d732b1979eb19e63f94e5edc873d1fead90b1887989e7dece20dcba67a8db6",
+    "patches/bespoke/0204-bespoke-pr149-cuda-budget-parked-pages.patch": "c2f40dc5cedc92d257252922a5348301a8de8507bcca49a77ddbc5eba3056f21",
+    "patches/bespoke/0205-bespoke-pr156-glm-kept-reasoning-linear.patch": "5378b01038f0e17a089ead0fdb024194e6a6818e0c1dcb13820ec046b9d03f3f",
+    "patches/bespoke/0206-bespoke-pr135-server-sse-keepalive.patch": "6a5580fdbe48babe9bd0b23e0c1fe2b05189af2add0b05ba526899f9ee2aa883",
+    "patches/bespoke/0207-bespoke-pr157-http-get-delete-body-discard.patch": "02d0e886e993183ecacba7a82f8554067997d52efb964a3b37f8513da9181bfe",
+    "patches/bespoke/0208-bespoke-pr134-glm-tool-tag-mention.patch": "05341f69616441d309a4db2ccaf27c9e3885c4a6056a47aedccbf66b98e20cdd",
+    "patches/bespoke/0209-bespoke-pr158-glm-tool-envelope-values.patch": "c2dba1cc1c50e641bf9ee248bc8d95221f74de597c7ef820b0ae1a8d55fc982d",
+    "patches/bespoke/0210-bespoke-pr140-glm-unoffered-tool-call.patch": "94f2bd5ab8f48b51deeae4c0765ced57d58d52061f35b7c38f8c265de666bd2d",
+    "patches/bespoke/0211-bespoke-pr164-glm-literal-added-tokens.patch": "11fce5fa6937d49c188851c41e781e10db951e7f902cf4e1ce137a3ee88e724e",
+    "patches/bespoke/0212-bespoke-pr167-responses-tool-image.patch": "692d5aaa71cac2b487785d28eb4c3d202d2c3f0dee0fdd0b85066938ab93d5d9",
+    "patches/fp4-local.patch": "224d1a6465a63f25214109a91ecaaebb963147813545313b39264fa690c2d713"
+  }
+}

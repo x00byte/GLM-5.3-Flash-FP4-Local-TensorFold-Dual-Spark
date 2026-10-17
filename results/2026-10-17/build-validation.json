@@ -1,0 +1,7 @@
+{
+  "recipe_build": "passed from pinned public base with all patches applied with fuzz=0",
+  "runtime_sources_sha256": "07f3c1fd5b68b99b1c923935a185902677ffae71adb36d1bd51e973b13e8e3c7",
+  "source_files": 429,
+  "measured_image_id": "sha256:06b9ae46f970d3bca72ebcb487289acc6457a3ceed9346d10e7642fbc84d0c5c",
+  "recipe_image_id": "sha256:56d8c3f6e4e0f81e7f03352cb9ce11b19d0a599d8acb3636a9d296d09bf1cb60"
+}

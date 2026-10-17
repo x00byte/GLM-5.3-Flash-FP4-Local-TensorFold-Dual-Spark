@@ -1,0 +1,74 @@
+[
+  {
+    "names": [
+      "model.language_model.layers.0.self_attn.q_proj",
+      "model.language_model.layers.0.self_attn.k_proj",
+      "model.language_model.layers.0.self_attn.v_proj",
+      "model.language_model.layers.0.self_attn.f_a_proj",
+      "model.language_model.layers.0.self_attn.g_a_proj",
+      "model.language_model.layers.0.self_attn.b_proj"
+    ],
+    "rows": 1,
+    "original_parts": 6,
+    "fused_parts": 2,
+    "relative_error": 1.7618279750775463e-07
+  },
+  {
+    "names": [
+      "model.language_model.layers.0.self_attn.q_proj",
+      "model.language_model.layers.0.self_attn.k_proj",
+      "model.language_model.layers.0.self_attn.v_proj",
+      "model.language_model.layers.0.self_attn.f_a_proj",
+      "model.language_model.layers.0.self_attn.g_a_proj",
+      "model.language_model.layers.0.self_attn.b_proj"
+    ],
+    "rows": 8,
+    "original_parts": 6,
+    "fused_parts": 2,
+    "relative_error": 1.7200553807809128e-07
+  },
+  {
+    "names": [
+      "model.language_model.layers.0.self_attn.q_proj",
+      "model.language_model.layers.0.self_attn.k_proj",
+      "model.language_model.layers.0.self_attn.v_proj",
+      "model.language_model.layers.0.self_attn.f_a_proj",
+      "model.language_model.layers.0.self_attn.g_a_proj",
+      "model.language_model.layers.0.self_attn.b_proj"
+    ],
+    "rows": 512,
+    "original_parts": 6,
+    "fused_parts": 2,
+    "relative_error": 0.0
+  },
+  {
+    "names": [
+      "model.language_model.layers.3.self_attn.q_a_proj",
+      "model.language_model.layers.3.self_attn.kv_a_proj_with_mqa"
+    ],
+    "rows": 1,
+    "original_parts": 2,
+    "fused_parts": 1,
+    "relative_error": 0.0
+  },
+  {
+    "names": [
+      "model.language_model.layers.3.self_attn.q_a_proj",
+      "model.language_model.layers.3.self_attn.kv_a_proj_with_mqa"
+    ],
+    "rows": 8,
+    "original_parts": 2,
+    "fused_parts": 1,
+    "relative_error": 0.0
+  },
+  {
+    "names": [
+      "model.language_model.layers.3.self_attn.q_a_proj",
+      "model.language_model.layers.3.self_attn.kv_a_proj_with_mqa"
+    ],
+    "rows": 512,
+    "original_parts": 2,
+    "fused_parts": 1,
+    "relative_error": 0.0
+  }
+]

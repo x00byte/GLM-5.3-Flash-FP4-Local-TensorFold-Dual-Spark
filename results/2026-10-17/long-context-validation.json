@@ -1,0 +1,11 @@
+{
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "prompt_tokens": 145485,
+  "wall_seconds": 150.8,
+  "effective_input_tokens_per_second": 964.7546419098143,
+  "output_tokens": 1,
+  "draft": false,
+  "cache": "uncached synthetic HTTP-record prompt",
+  "purpose": "serving-process selection-tile warmup above 131k; separate from ledger sweep",
+  "passed": true
+}

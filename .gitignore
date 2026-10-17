@@ -1,0 +1,17 @@
+.env
+*.local.env
+__pycache__/
+*.pyc
+.cache/
+cache/
+models/
+weights/
+*.safetensors
+*.bin
+*.pt
+*.gguf
+*.tar
+*.log
+.venv/
+
+local-results/

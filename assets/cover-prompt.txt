@@ -1,0 +1,6 @@
+Use case: ads-marketing. Asset type: wide 16:9 GitHub README cover for the GLM-5.3-Flash-FP4-Local TensorFold recipe on two DGX Spark-class computers.
+Primary request: a beautiful refined technical cover image with strong readable typography and a premium editorial 3D render.
+Reference image: the provided TensorFold logo is a brand reference; retain its recognizable flowing folded mesh silhouette and blue-violet-coral illuminated network surface. Give it a prominent place in the composition.
+Scene: two small elegant charcoal metallic compact AI compute boxes connected by a single luminous high-speed link, on a dark graphite studio surface; the flowing TensorFold mesh floats above and between them. Subtle folded tensor planes suggest packed FP4 computation without any numeric performance claims. Restrained blue, violet, and coral highlights, meticulous soft reflections, lots of breathing room.
+Typography verbatim: "GLM-5.3-Flash" as the clear largest title; "FP4 Local" as a secondary line; "TensorFold · Dual Spark" as the small caption. Crisp modern sans serif, carefully spaced, balanced with the render. No other text.
+Constraints: polished landscape cover, no invented logos, no mascots, no endorsements, no benchmarks or charts, no exaggerated speed claims, no watermark. This is an independent recipe project, not an official vendor announcement.

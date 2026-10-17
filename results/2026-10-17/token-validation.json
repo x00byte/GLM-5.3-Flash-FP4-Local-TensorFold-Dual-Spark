@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "prefill_chunk_change_512_to_2048": {
+    "token_hash_matches": {
+      "off": 36,
+      "on": 36
+    }
+  },
+  "post_145485_token_warmup_decode": {
+    "concurrency": [
+      1,
+      4,
+      8
+    ],
+    "token_hash_matches": 13,
+    "model_healthy_after": true
+  },
+  "scope": "Exact deterministic token hashes for the measured synthetic workloads; not a general quality evaluation."
+}
