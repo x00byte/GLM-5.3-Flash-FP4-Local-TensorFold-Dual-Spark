@@ -7,6 +7,11 @@ RUN cd "$(python3 -c 'import pathlib,tensorfold; print(pathlib.Path(tensorfold._
     patch -p1 --forward --fuzz=0 < /opt/glm-fp4-local/fp4-local.patch && \
     python3 -c 'import tensorfold.families.glm5_next.cuda.fp4_local,tensorfold.families.glm5_next.cuda.multi,tensorfold.server.metrics'
 ENV MALLOC_ARENA_MAX=2 OMP_NUM_THREADS=2 TOKENIZERS_PARALLELISM=true
+COPY patches/adaptive-copy.patch /opt/glm-fp4-local/adaptive-copy.patch
+COPY tests/ /opt/glm-fp4-local/tests/
+RUN cd "$(python3 -c 'import pathlib,tensorfold; print(pathlib.Path(tensorfold.__file__).parent.parent)')" && \
+    patch -p1 --forward --fuzz=0 < /opt/glm-fp4-local/adaptive-copy.patch && \
+    CUDA_VISIBLE_DEVICES= python3 -m unittest discover -s /opt/glm-fp4-local/tests
 LABEL org.opencontainers.image.title="GLM-5.3-Flash-FP4-Local TensorFold" \
       org.opencontainers.image.source="https://github.com/x00byte/GLM-5.3-Flash-FP4-Local-TensorFold-Dual-Spark"
 

@@ -1,0 +1,285 @@
+{
+  "profiles": [
+    "baseline",
+    "copy",
+    "mse",
+    "adaptive",
+    "neural-only-new-profile"
+  ],
+  "timed_per_profile": 39,
+  "hashes_match": true,
+  "zero_timed_prefill": true,
+  "no_outside_timed_requests": true,
+  "summary": [
+    {
+      "profile": "baseline",
+      "task": "general",
+      "c": 1,
+      "decode_tps": 38.17091277334804
+    },
+    {
+      "profile": "baseline",
+      "task": "general",
+      "c": 4,
+      "decode_tps": 84.11612816470348
+    },
+    {
+      "profile": "baseline",
+      "task": "general",
+      "c": 8,
+      "decode_tps": 109.78830966090482
+    },
+    {
+      "profile": "baseline",
+      "task": "code",
+      "c": 1,
+      "decode_tps": 49.431025716059814
+    },
+    {
+      "profile": "baseline",
+      "task": "code",
+      "c": 4,
+      "decode_tps": 99.43869991587073
+    },
+    {
+      "profile": "baseline",
+      "task": "code",
+      "c": 8,
+      "decode_tps": 131.6331406857111
+    },
+    {
+      "profile": "baseline",
+      "task": "copy",
+      "c": 1,
+      "decode_tps": 80.97973528097211
+    },
+    {
+      "profile": "baseline",
+      "task": "copy",
+      "c": 4,
+      "decode_tps": 156.7310335841942
+    },
+    {
+      "profile": "baseline",
+      "task": "copy",
+      "c": 8,
+      "decode_tps": 212.97934859868278
+    },
+    {
+      "profile": "copy",
+      "task": "general",
+      "c": 1,
+      "decode_tps": 38.15402094668265
+    },
+    {
+      "profile": "copy",
+      "task": "general",
+      "c": 4,
+      "decode_tps": 84.52774130899228
+    },
+    {
+      "profile": "copy",
+      "task": "general",
+      "c": 8,
+      "decode_tps": 108.8895562677194
+    },
+    {
+      "profile": "copy",
+      "task": "code",
+      "c": 1,
+      "decode_tps": 49.12145999939162
+    },
+    {
+      "profile": "copy",
+      "task": "code",
+      "c": 4,
+      "decode_tps": 98.4128502068937
+    },
+    {
+      "profile": "copy",
+      "task": "code",
+      "c": 8,
+      "decode_tps": 131.1140818272734
+    },
+    {
+      "profile": "copy",
+      "task": "copy",
+      "c": 1,
+      "decode_tps": 63.31051400470599
+    },
+    {
+      "profile": "copy",
+      "task": "copy",
+      "c": 4,
+      "decode_tps": 125.56917578265801
+    },
+    {
+      "profile": "copy",
+      "task": "copy",
+      "c": 8,
+      "decode_tps": 172.75016503746514
+    },
+    {
+      "profile": "mse",
+      "task": "general",
+      "c": 1,
+      "decode_tps": 39.076606243612694
+    },
+    {
+      "profile": "mse",
+      "task": "general",
+      "c": 4,
+      "decode_tps": 81.67697918238761
+    },
+    {
+      "profile": "mse",
+      "task": "general",
+      "c": 8,
+      "decode_tps": 109.55433842687873
+    },
+    {
+      "profile": "mse",
+      "task": "code",
+      "c": 1,
+      "decode_tps": 46.426349851259964
+    },
+    {
+      "profile": "mse",
+      "task": "code",
+      "c": 4,
+      "decode_tps": 100.46396320860627
+    },
+    {
+      "profile": "mse",
+      "task": "code",
+      "c": 8,
+      "decode_tps": 132.75167630644933
+    },
+    {
+      "profile": "mse",
+      "task": "copy",
+      "c": 1,
+      "decode_tps": 80.44221678574608
+    },
+    {
+      "profile": "mse",
+      "task": "copy",
+      "c": 4,
+      "decode_tps": 156.5352437381514
+    },
+    {
+      "profile": "mse",
+      "task": "copy",
+      "c": 8,
+      "decode_tps": 211.91497194192772
+    },
+    {
+      "profile": "adaptive",
+      "task": "general",
+      "c": 1,
+      "decode_tps": 37.948004969639875
+    },
+    {
+      "profile": "adaptive",
+      "task": "general",
+      "c": 4,
+      "decode_tps": 98.54067259715053
+    },
+    {
+      "profile": "adaptive",
+      "task": "general",
+      "c": 8,
+      "decode_tps": 140.033109356508
+    },
+    {
+      "profile": "adaptive",
+      "task": "code",
+      "c": 1,
+      "decode_tps": 49.17775586017655
+    },
+    {
+      "profile": "adaptive",
+      "task": "code",
+      "c": 4,
+      "decode_tps": 114.08181953191125
+    },
+    {
+      "profile": "adaptive",
+      "task": "code",
+      "c": 8,
+      "decode_tps": 151.7148865301407
+    },
+    {
+      "profile": "adaptive",
+      "task": "copy",
+      "c": 1,
+      "decode_tps": 94.76577062869963
+    },
+    {
+      "profile": "adaptive",
+      "task": "copy",
+      "c": 4,
+      "decode_tps": 241.16985763617416
+    },
+    {
+      "profile": "adaptive",
+      "task": "copy",
+      "c": 8,
+      "decode_tps": 341.0615927520319
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "general",
+      "c": 1,
+      "decode_tps": 38.042055022568384
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "general",
+      "c": 4,
+      "decode_tps": 98.41696690399719
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "general",
+      "c": 8,
+      "decode_tps": 139.87373680688586
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "code",
+      "c": 1,
+      "decode_tps": 49.11216579286442
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "code",
+      "c": 4,
+      "decode_tps": 114.02490761572341
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "code",
+      "c": 8,
+      "decode_tps": 151.81151813380237
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "copy",
+      "c": 1,
+      "decode_tps": 80.44699145766833
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "copy",
+      "c": 4,
+      "decode_tps": 209.15536796503693
+    },
+    {
+      "profile": "neural-only-new-profile",
+      "task": "copy",
+      "c": 8,
+      "decode_tps": 295.32906072239274
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "revision": "76348ddb2be2e35e39ecfc00e75dc07703f4f3d5",
+  "baseline_runtime_sources_sha256": "07f3c1fd5b68b99b1c923935a185902677ffae71adb36d1bd51e973b13e8e3c7",
+  "new_runtime_sources_sha256": "5aafe38ef4e031e6bbc6f68150a9c0e5b0d220cb3906bbce127efd12e749440d",
+  "base_settings": "TP2, eight slots, native thinking off, DFlash2 fnc7:0.3, FP8 KV, prefill2048, packed sampler, async messages, lone graphs off, reserve14.5GiB, extra kept-prompt budget8GiB.",
+  "profiles": {
+    "baseline": "Original serving code; copy off; minmax draft quantization; verification window64; RoCE limit1MiB.",
+    "copy": "Original code with copy on, match8, max7, reply-match16, miss-max2.",
+    "mse": "Original code; copy off; MSE quantization of proposal head and other DFlash matrices.",
+    "adaptive": "New code with bounded cached-head priority and actual adaptive factory; match8, max15, reply-match32, miss-max0; verification window128; RoCE limit2MiB; minmax draft quantization.",
+    "neural-only-new-profile": "Same new process and settings as adaptive, with per-request tf_copy=false."
+  },
+  "method": "Prose, code and record-rewrite workloads; temperature0; C1/C4/C8; 128 output tokens; one timed burst per cell, paired fully cached prefix seeds. C4/C8 are aggregate, measured from earliest first to latest last output delta with sum(completion_tokens)-C. Prefill/TTFT excluded; zero timed prefill checked. Paired C8 repeats and the separate 512-token comparison have their own records.",
+  "scope": "Checkpoint weights and target precision unchanged. These are workload-specific throughput screens, not a general quality evaluation. New profile changes several serving features; only the same-process copy on/off comparison isolates copy drafting.",
+  "native": {
+    "version": "1.0.12",
+    "archive_sha256": "437eb0ca6fa102ffcbee8ffe3ad8053b7e45d227e80b6981b7973869f396a612",
+    "status": "No full-model native GPU throughput measured. Official binary info misclassified the mixed checkpoint as full precision. Bounded serve under an imposed 1GiB CUDA ceiling refused memory admission. Separate executed CPU ModelOpt admission rejects actual MIXED_PRECISION config; see ../2026-10-17-tuned/native-admission-check.json."
+  }
+}

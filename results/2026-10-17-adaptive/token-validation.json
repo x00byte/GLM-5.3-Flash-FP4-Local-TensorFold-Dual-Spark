@@ -1,0 +1,9 @@
+{
+  "full_sweep_passed": true,
+  "timed_requests": 144,
+  "prefix_seeds": 72,
+  "original_profile_hash_matches": 13,
+  "scope": "C1/C4/C8 thinking-off 128-token records match original target output hashes. All full-sweep cache and request-accounting checks passed; model quality is not evaluated.",
+  "post_long_hash_matches": 9,
+  "long_context_passed": true
+}

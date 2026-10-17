@@ -1,0 +1,336 @@
+--- a/tensorfold/families/glm5_next/cuda/copy_drafts.py
++++ b/tensorfold/families/glm5_next/cuda/copy_drafts.py
+@@ -40,6 +40,7 @@
+     reply_match: int = 0             # 0: occurrences in the reply need ``match`` tokens like the prompt's
+     pad: tuple[int, ...] = ()        # window widths past GRAPHED rows that replay CUDA graphs (TF_GLM_WIDE_GRAPHS)
+     miss_most: int = 0               # 0: off; else drafts a copied round after one that missed
++    smart: bool = False
+ 
+     @classmethod
+     def from_env(cls, max_drafts: int, env=None, pad: Sequence[int] = ()) -> CopySettings | None:
+@@ -68,19 +69,24 @@
+             raise ValueError(f"TF_GLM_COPY_REPLY_MATCH: 0 (off) or more than TF_GLM_COPY_MATCH ({match}), not {reply}")
+         widths = tuple(sorted(int(r) for r in pad if GRAPHED < int(r) <= max_drafts + 1))
+         most = number("TF_GLM_COPY_MAX", min(MOST, max_drafts), 1, max_drafts)
+-        return cls(match, most, reply, widths, number("TF_GLM_COPY_MISS_MAX", 0, 0, most))
++        return cls(match, most, reply, widths, number("TF_GLM_COPY_MISS_MAX", 0, 0, most),
++                   bool(number("TF_GLM_COPY_SMART", 0, 0, 1)))
+ 
+     def code(self) -> list[int]:
+         """The settings as ints both ranks compare at startup (zeros: off; the pad widths are the engine's
+         TF_GLM_WIDE_GRAPHS, compared on their own)."""
+ 
+-        return [self.match, self.most, self.reply_match, self.miss_most]
++        return [self.match, self.most, self.reply_match, self.miss_most, int(self.smart)]
+ 
+-    def drafts(self, context: Sequence[int]) -> CopyDrafts:
++    def drafts(self, context: Sequence[int], *, pad: bool = True) -> CopyDrafts:
+         """A request's index: ``context`` is its prompt and pending token (the reply's first token)."""
+ 
+-        return CopyDrafts(context, self.match, self.most, prompt=max(len(context) - 1, 0),
+-                          reply_match=self.reply_match, pad=self.pad, miss_most=self.miss_most)
++        kind = CopyDrafts
++        if self.smart:
++            from .adaptive_copy import AdaptiveCopyDrafts
++            kind = AdaptiveCopyDrafts
++        return kind(context, self.match, self.most, prompt=max(len(context) - 1, 0),
++                          reply_match=self.reply_match, pad=self.pad if pad else (), miss_most=self.miss_most)
+ 
+ 
+ class CopyDrafts:
+--- a/tensorfold/families/glm5_next/cuda/engine.py
++++ b/tensorfold/families/glm5_next/cuda/engine.py
+@@ -335,18 +335,17 @@
+ 
+ def multi_window(value: str | None = None) -> int:
+     """TF_GLM_MULTI_WINDOW: --parallel's shared verify window, the rows of every stream's windows together in a round
+-    (the longest tails trimmed past it): 32 (default) or 16 to 64 in steps of 8 (``geometry.MLA_DECODE_ROWS``: the
+-    widest decode window the kernels serve). The batched window's buffers, token selection scratch and CUDA graphs (one
++    (the longest tails trimmed past it): 32 (default) or 16 to 128 in steps of 8 (all batched buffers are sized dynamically). The batched window's buffers, token selection scratch and CUDA graphs (one
+     a row count) are sized for it, and the startup estimate counts them. Past 32 rows a round's all-gathers exceed
+-    TF_ROCE_MAX_KB=512 (16 KiB a row) and go through NCCL unless it is raised (1024 for 64 rows)."""
+-
+-    from tensorfold.cuda.geometry import MLA_DECODE_ROWS
++    TF_ROCE_MAX_KB=512 (16 KiB a row) and go through NCCL unless it is raised (2048 for 128 rows)."""
++
++    maximum = 128
+ 
+     value = (os.environ.get("TF_GLM_MULTI_WINDOW", "") if value is None else value).strip()
+     if value == "":
+         return MULTI_WINDOW
+-    if not value.isdecimal() or not 16 <= int(value) <= MLA_DECODE_ROWS or int(value) % 8:
+-        raise ValueError(f"TF_GLM_MULTI_WINDOW: 16 to {MLA_DECODE_ROWS} rows in steps of 8, not {value!r}")
++    if not value.isdecimal() or not 16 <= int(value) <= maximum or int(value) % 8:
++        raise ValueError(f"TF_GLM_MULTI_WINDOW: 16 to {maximum} rows in steps of 8, not {value!r}")
+     return int(value)
+ 
+ 
+@@ -694,7 +693,7 @@
+             verify_code = [verify_code]
+         # every rank must run the same calls: refuse to start when they were given different settings
+         mine = [int(drafter is not None), capacity, int(long_context), int(serial_only), int(LATENT),
+-                prefill_rows, self.grid, KVB_KINDS.index(kvb)] + (self.copy.code() if self.copy is not None else [0, 0, 0, 0]) + \
++                prefill_rows, self.grid, KVB_KINDS.index(kvb)] + (self.copy.code() if self.copy is not None else [0, 0, 0, 0, 0]) + \
+             self.split.code() + [int(self.dump is not None), quant_code, self.shared, int(DRAFT_RING), int(self.mtp_on),
+                                  parallel, *verify_code, int(union_cover()), MAX_ROWS, len(WIDE_GRAPHS),
+                                  sum(WIDE_GRAPHS), max(WIDE_GRAPHS, default=0),
+@@ -1502,7 +1501,8 @@
+                 raise ValueError("image inputs require starting this server with --vision")
+             stats = self.scheduler.submit(list(prompt), max_tokens, sampling, bool(draft) and not self.serial_only,
+                                           on_tokens, stop_eos=stop_eos, vision=vision, constraint=constraint,
+-                                          background=background, glm={"code": code, "spec": spec, "salt": salt})
++                                          background=background, glm={"code": code, "spec": spec, "salt": salt,
++                                                                      "copy": getattr(self.request, "copy", True)})
+             stats.update(policy=spec, drafts=draft)
+             return stats
+         positions: list[int] = []
+--- a/tensorfold/families/glm5_next/cuda/multi.py
++++ b/tensorfold/families/glm5_next/cuda/multi.py
+@@ -523,6 +523,7 @@
+     copy_drafted: int = 0
+     copy_accepted: int = 0
+     next_copy: Any = None        # ((copies length, room), proposal, proposed) the round's end worked out
++    copy_enabled: bool = True
+ 
+ 
+ class NoRoom(RuntimeError):
+@@ -979,7 +980,7 @@
+ 
+         packed = pack(s.constraint)
+         payload += [len(packed), *packed, len(positions), *positions, int(s.vision is not None),
+-                    *pack_keys(vrows, vkeys, vpos), int(salt is not None)]       # patch 0117: salted, last
++                    *pack_keys(vrows, vkeys, vpos), int(salt is not None), int(info.get("copy", True))]
+         self._emit(ADMIT, payload)
+         try:
+             self._admitted(self._parse_admit(payload), s, feed, s.constraint, info.get("spec", ""))
+@@ -1038,7 +1039,7 @@
+         keyed = keyed_ids(prompt, vpos, vrows, vkeys) if vrows else None
+         return dict(sid=sid, slot=slot, base=base, size=size, kid=kid, copy=copy, count=count, stop_eos=bool(stop_eos),
+                     draft=bool(draft), sampling=sampling, shared=shared, code=code, prompt=prompt, packed=packed,
+-                    positions=positions, images=images, keyed=keyed, salted=bool(p[end]))
++                    positions=positions, images=images, keyed=keyed, salted=bool(p[end]), copy_enabled=bool(p[end + 1]))
+ 
+     def _admitted(self, a: dict, s: Stream, feed, constraint, spec: str = "") -> None:
+         """Both ranks: an ADMIT's stream in its slot and extent, resumed from its kept prompt if it names one."""
+@@ -1103,6 +1104,7 @@
+                     self.chat_roots = {k: v for k, v in self.chat_roots.items() if k in live}
+         lane = Lane(s, a["sid"], a["slot"], x, st, self.next_order, code, spec, policy, dflash, feed=feed,
+                     constraint=constraint, images=a["images"], chat=chat)
++        lane.copy_enabled = a["copy_enabled"]
+         if a.get("keyed") is not None:              # rank 1 too: its kept states are stored and matched by them
+             lane.key = a["keyed"]
+         if a["salted"]:                             # patch 0117: rank 0's own salt; rank 1 knows only that it has one
+@@ -1837,6 +1839,12 @@
+         filling = [l for l in self.lanes.values() if not l.decoding]
+         if not filling:
+             return None
++        # A complete cache hit only samples a saved head; it consumes no prompt
++        # forward. Bound priority by admission order to keep old cold fills fair.
++        oldest = min(l.order for l in filling)
++        ready = next((l for l in filling if l.head is not None and l.order - oldest < self.count), None)
++        if ready is not None and self.partial is None:
++            return ready
+         decoding = [l for l in self.lanes.values() if l.decoding and not l.paused and not l.s.done]
+         if decoding and self.fill_budget and self.decode_due:
+             self.decode_due = False
+@@ -2136,16 +2144,13 @@
+     def _started(self, lane: Lane, first: int) -> None:
+         """Both ranks: the lane's prompt is in and its first token sampled: it decodes from the next round."""
+ 
+-        from .copy_drafts import CopyDrafts
+-
+         s = lane.s
+         prompt = s.prompt
+         lane.decoding = True
+         s.started = time.perf_counter()
+-        if lane.policy is not None and self.g.copy is not None:
++        if lane.policy is not None and self.g.copy is not None and lane.copy_enabled:
+             c = self.g.copy                 # no pads: batched windows are not the single-stream widths
+-            lane.copies = CopyDrafts(list(prompt) + [first], c.match, c.most, prompt=len(prompt),
+-                                     reply_match=c.reply_match, miss_most=c.miss_most)
++            lane.copies = c.drafts(list(prompt) + [first], pad=False)
+         if lane.policy is not None:
+             lane.depth = min(lane.policy.next(0, 0), s.count - 1)
+ 
+@@ -2314,6 +2319,10 @@
+             if l.constraint is not None:
+                 l.constraint.advance(new)
+             if l.copies is not None:
++                if not was_copy:
++                    discard = getattr(l.copies, "discard", None)
++                    if discard is not None:
++                        discard()
+                 l.copies.extend(new)
+             ndrafts = len(seg.tokens) - 1
+             s.counted(len(seg.tokens))                     # Stream.take counts the accepted drafts
+@@ -2436,6 +2445,9 @@
+             for retired in pending.retired - {sid}:
+                 self._finish(retired)
+         lane = self.lanes.pop(sid)
++        lane.s.glm_lane = dict(copy_rounds=lane.copy_rounds, copy_drafted=lane.copy_drafted,
++                               copy_accepted=lane.copy_accepted,
++                               copy_learned_edits=len(getattr(lane.copies, "edits", {})))
+         x = lane.extent
+         x.owner = None
+         self._settle(x)
+--- a/tensorfold/families/glm5_next/cuda/app.py
++++ b/tensorfold/families/glm5_next/cuda/app.py
+@@ -91,6 +91,8 @@
+         return kept.restore(messages) if kept is not None else messages
+ 
+     def _check_fields(self, body: Any) -> str | None:
++        if isinstance(body, dict) and "tf_copy" in body and type(body["tf_copy"]) is not bool:
++            return "tf_copy must be a boolean"
+         try:                        # patch 0117: a malformed cache_salt is refused before a stream's headers go out
+             cache_salt(body)
+         except RequestError as exc:
+@@ -125,6 +127,7 @@
+         model = str(body.get("model") or "")
+         self.engine.request.policy = body.get("tf_policy") or (model.split("@", 1)[1] if "@" in model else None)
+         self.engine.request.stop_eos = not bool(body.get("ignore_eos", False))
++        self.engine.request.copy = body.get("tf_copy", True)
+         self.engine.request.cache_salt = cache_salt(body)      # patch 0117: which kept states it may resume
+         result = super().run(body, chat, emit, prepared=prepared, cancelled=cancelled)
+         kept = getattr(self.template, "kept", None)
+--- /dev/null
++++ b/tensorfold/families/glm5_next/cuda/adaptive_copy.py
+@@ -0,0 +1,139 @@
++"""Proposal-only longest-match lookup with verified, repeated span edits."""
++from __future__ import annotations
++
++import numpy as np
++
++from .copy_drafts import CopyDrafts
++
++
++class AdaptiveCopyDrafts(CopyDrafts):
++    """Learn a repeated rewrite between independently anchored prompt spans.
++
++    Two distinct prompt positions must agree before an edit enters the private
++    proposal index. Insertions/deletions are allowed. The original model still
++    verifies every proposed token; neither its prompt nor weights change.
++    """
++
++    def __init__(self, *args, **kwargs):
++        super().__init__(*args, **kwargs)
++        self.original = self.buf[:self.prompt].copy()
++        self.reply = self.buf[self.prompt:self.length].tolist()
++        self.edits, self.evidence = {}, {}
++        self.blocked = set()
++        self.last, self.source, self.gap = [], None, None
++        self.matched = self.failures = 0
++        self.disabled = False
++
++    def extend(self, tokens):
++        count = len(tokens)
++        missed = 0 < count <= len(self.last) and self.last[count - 1] != int(tokens[-1])
++        if missed and self.edits:
++            self.failures += 1
++            if self.failures >= 3:
++                self.disabled = True
++        elif (missed and self.source is not None and self.gap is None and
++              self.matched >= self.match and count >= 2):
++            position = self.source + count - 1
++            if position < self.prompt:
++                self.gap = position, len(self.reply) + count - 1
++        self.reply.extend(int(t) for t in tokens)
++        super().extend(tokens)
++        self.last, self.source = [], None
++
++    def discard(self):
++        """A prelaunched proposal was bypassed by a short or neural round."""
++        self.proposed = 0
++        self.last, self.source = [], None
++
++    def _observe_span(self, start, stop, replacement):
++        before = self.original[start:stop].tolist()
++        after = list(replacement)
++        while before and after and before[0] == after[0]:
++            before.pop(0); after.pop(0); start += 1
++        while before and after and before[-1] == after[-1]:
++            before.pop(); after.pop()
++        if not before or len(before) > 64 or len(after) > 64:
++            return False
++        old, new = tuple(before), tuple(after)
++        if old in self.blocked:
++            return False
++        evidence = self.evidence.setdefault(old, {})
++        evidence.setdefault(new, set()).add(start)
++        if len(evidence) > 1:
++            self.blocked.add(old)
++            if old in self.edits:
++                self.edits.pop(old)
++                self._rebuild()
++            return False
++        if len(evidence[new]) < 2:
++            return False
++        self.edits[old] = new
++        self._rebuild()
++        return True
++
++    def _rebuild(self):
++        original = self.original.tolist()
++        virtual, at = [], 0
++        while at < len(original):
++            found = False
++            for old, new in self.edits.items():
++                if tuple(original[at:at + len(old)]) == old:
++                    virtual.extend(new); at += len(old); found = True; break
++            if not found:
++                virtual.append(original[at]); at += 1
++        values = virtual + self.reply
++        self.prompt, self.length = len(virtual), len(values)
++        self.buf = np.empty(max(1024, 2 * self.length), dtype=np.int32)
++        self.buf[:self.length] = values
++
++    def propose(self, room=None):
++        self.proposed = 0
++        self.last, self.source = [], None
++        most = self.most if room is None else min(self.most, int(room))
++        if most < 4 or self.disabled:
++            return []
++        hits = self.starts()
++        if not hits.size or hits.size > 256:
++            return []
++        length, match = self.length, self.match
++        matched = match
++        for extra in range(1, min(64 - match, length - match) + 1):
++            eligible = hits[hits >= extra]
++            good = eligible[self.buf[eligible - extra] == self.buf[length - match - extra]]
++            if not good.size:
++                break
++            hits = good
++            matched = match + extra
++        # A new unique anchor closes a preceding mismatch span. Learning stops
++        # after one rule; three further misses fall back to the neural drafter.
++        if len(hits) == 1 and self.gap is not None and not self.edits:
++            source_end = int(hits[0]) + match
++            source_start, reply_start = source_end - matched, len(self.reply) - matched
++            old_start, new_start = self.gap
++            if old_start <= source_start < self.prompt and new_start <= reply_start:
++                self.gap = None
++                if source_start - old_start <= 96 and reply_start - new_start <= 96:
++                    if self._observe_span(old_start, source_start, self.reply[new_start:reply_start]):
++                        return self.propose(room)
++            elif len(self.reply) - new_start > 128:
++                self.gap = None
++        full = hits[hits <= length - match - most]
++        if full.size:
++            hits = full
++        else:
++            most = min(most, int((length - match - hits).max()))
++            hits = hits[hits <= length - match - most]
++        starts = hits + match
++        agreed = []
++        for offset in range(most):
++            values = self.buf[starts + offset]
++            if not np.all(values == values[0]):
++                break
++            agreed.append(int(values[0]))
++        if len(agreed) < 4:
++            return []
++        self.last, self.matched = agreed, matched
++        if len(hits) == 1 and int(starts[0]) < self.prompt:
++            self.source = int(starts[0])
++        self.proposed = len(agreed)
++        return self.padded(agreed, room)

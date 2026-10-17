@@ -2,43 +2,39 @@
 
 ![GLM-5.3-Flash FP4 Local on Dual Spark](assets/cover.png)
 
-[`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local) on two 128 GB GB10 Sparks. TP2 over RoCE, patched Python TensorFold 0.6.0, DFlash2 `fnc7:0.3`, FP8 KV.
-
-- Shared KV pool: **1,415,168 tokens** across eight slots.
-- Per-request context limit: **262,144 tokens**.
-- Target snapshot: **165.3 GiB**. [Pinned revisions](provenance.json).
+[`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local) on two 128 GB GB10 Sparks. TP2 over RoCE, patched Python TensorFold 0.6.0, DFlash2 and adaptive span drafting. Target weights and precision are unchanged.
 
 ## Measurements
 
-| Concurrent requests | Decode off | Decode high | Cold prefill off | Cold prefill high |
-|---:|---:|---:|---:|---:|
-| 1 | 50.9 | 40.9 | 828.8 | 819.6 |
-| 2 | 80.0 | 71.3 | 818.1 | 896.6 |
-| 3 | 89.1 | 71.4 | 920.6 | 866.1 |
-| 4 | 98.0 | 88.8 | 896.6 | 894.5 |
-| 5 | 96.4 | 95.0 | 868.3 | 907.4 |
-| 6 | 122.8 | 107.5 | 920.2 | 919.6 |
-| 7 | 123.0 | 113.9 | 907.0 | 863.9 |
-| 8 | 128.0 | 118.2 | 894.2 | 894.1 |
+Synthetic record rewrite, thinking off, **512 output tokens**, measured 2026-10-17. Decode excludes prefill and TTFT. C8 is aggregate.
 
-Tokens/s, measured 2026-10-17. C2–C8 decode is aggregate. Thinking uses native off/high modes. Decode excludes prefill and TTFT; prefill uses separate uncached requests. Short synthetic prompts, 64-token decode output. [Raw results and method](results/2026-10-17-tuned/README.md).
+| Requests | Neural drafts only | Adaptive drafts | Gain |
+|---:|---:|---:|---:|
+| 1 | 84.4 | **116.0** | 37.5% |
+| 8 | 291.0 | **396.5** | 36.2% |
 
-Cache capacity increased 2.32× from the [initial configuration](results/2026-10-17/README.md). No repeatable decode speedup was established. The 145,485-token context check passed. [Tuning and memory observations](docs/performance-tuning.md).
+Tokens/s, same process and prompts; output hashes matched. [Raw paired measurements](results/2026-10-17-draft-tests/paired-validation.json).
+
+Separate **128-token**, isolated C8 confirmation bursts reached 339–342 tok/s, versus 213 with the original serving profile. General prose/code screens reached 140/152 tok/s at C8, versus 110/132 previously. Gains depend on workload and output length. [Comparisons and scope](results/2026-10-17-draft-tests/README.md).
+
+[Fresh C1–C8 thinking off/high decode and cold-prefill table](results/2026-10-17-adaptive/README.md). Best cold prefill in that sweep: **896 input tok/s**.
+
+FP8 KV pool: **1,286,144 shared tokens**, eight slots; **262,144-token** per-request limit. Wider verification uses more buffer memory. [Configuration and cache tradeoff](docs/performance-tuning.md).
 
 ## Run
 
 ```bash
-docker build -t local/glm53-fp4-local-tensorfold:20261017 .
+docker build -t local/glm53-fp4-local-tensorfold:20261017-v3 .
 ```
 
-[Download, configure and start both ranks](docs/setup.md). [Worker NFS setup](docs/nfs.md).
+[Download and start both ranks](docs/setup.md). [Adaptive drafting and API control](docs/adaptive-drafting.md).
 
 ```bash
-python3 benchmarks/run.py --out local-results/sweep
+python3 benchmarks/run.py --workload edit --input-lines 32 --output-tokens 128 --out local-results/sweep
 python3 benchmarks/report.py local-results/sweep
 ```
 
-Text inference is tested. The measured DFlash2 drafter is **CC BY-NC-ND 4.0**; the target uses the NVIDIA Open Model Agreement. Weights are downloaded separately.
+The target snapshot is 165.3 GiB. [Pinned revisions](provenance.json). The measured drafter is **CC BY-NC-ND 4.0**; the target uses the NVIDIA Open Model Agreement. Weights are downloaded separately.
 
 ## Credits
 

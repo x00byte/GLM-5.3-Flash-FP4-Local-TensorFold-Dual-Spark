@@ -2,7 +2,9 @@ GLM-5.3-Flash-FP4-Local TensorFold Dual Spark recipe
 
 This recipe adds a TensorFold storage reader for NVIDIA's FP4-Local mixed
 checkpoint, lossless CSF32 expert-scale expansion, fused compatible dense
-projections, a proposal-only Q4 head and decode/prefill work counters.
+projections, a proposal-only Q4 head and decode/prefill work counters. It also
+adds verified repeated-span copy proposals and cached-request scheduling
+changes to TensorFold's existing prompt-lookup and batched serving paths.
 
 The patches modify TensorFold and the MiaAI-Lab GLM Spark runtime. Their
 copyright, Apache-2.0 and earlier MIT notices are retained in

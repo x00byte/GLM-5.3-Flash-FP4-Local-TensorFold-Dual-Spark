@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "scope": "Same serving process, temperature zero, thinking off, matched prompts and token caps, zero timed prefill, no outside timed requests. 128-token C8 repeats alternate order. 512-token C1/C8 is a separate one-pair long-output check.",
+  "pairs": [
+    {
+      "output_tokens": 128,
+      "concurrency": 8,
+      "pair": "r0-off",
+      "neural_only_tps": 294.1865952556431,
+      "adaptive_tps": 341.5673541029019,
+      "gain_percent": 16.10568245167179,
+      "hashes_match": true,
+      "learned_requests_in_pair": 8
+    },
+    {
+      "output_tokens": 128,
+      "concurrency": 8,
+      "pair": "r1-off",
+      "neural_only_tps": 295.8017805877676,
+      "adaptive_tps": 339.1529345347432,
+      "gain_percent": 14.65547430473051,
+      "hashes_match": true,
+      "learned_requests_in_pair": 8
+    },
+    {
+      "output_tokens": 512,
+      "concurrency": 1,
+      "pair": "off",
+      "neural_only_tps": 84.37500191292943,
+      "adaptive_tps": 116.00277418166046,
+      "gain_percent": 37.484766283465355,
+      "hashes_match": true,
+      "learned_requests_in_pair": 9
+    },
+    {
+      "output_tokens": 512,
+      "concurrency": 8,
+      "pair": "off",
+      "neural_only_tps": 291.00182717123437,
+      "adaptive_tps": 396.45110724460386,
+      "gain_percent": 36.2366384769536,
+      "hashes_match": true,
+      "learned_requests_in_pair": 9
+    }
+  ]
+}

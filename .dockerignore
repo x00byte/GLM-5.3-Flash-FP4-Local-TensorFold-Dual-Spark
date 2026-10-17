@@ -5,3 +5,7 @@
 !target-manifest.json
 !scripts/
 !scripts/verify_snapshot.py
+!tests/
+!tests/test_adaptive_copy.py
+!tests/fixtures/
+!tests/fixtures/repeated-edit.json

@@ -109,6 +109,10 @@
     "patches/bespoke/0210-bespoke-pr140-glm-unoffered-tool-call.patch": "94f2bd5ab8f48b51deeae4c0765ced57d58d52061f35b7c38f8c265de666bd2d",
     "patches/bespoke/0211-bespoke-pr164-glm-literal-added-tokens.patch": "11fce5fa6937d49c188851c41e781e10db951e7f902cf4e1ce137a3ee88e724e",
     "patches/bespoke/0212-bespoke-pr167-responses-tool-image.patch": "692d5aaa71cac2b487785d28eb4c3d202d2c3f0dee0fdd0b85066938ab93d5d9",
-    "patches/fp4-local.patch": "224d1a6465a63f25214109a91ecaaebb963147813545313b39264fa690c2d713"
-  }
+    "patches/fp4-local.patch": "224d1a6465a63f25214109a91ecaaebb963147813545313b39264fa690c2d713",
+    "patches/adaptive-copy.patch": "52d5091ff07b83ce336ea1cf1c9f60855a2a618dd5e4768c1016ae81fbef1e57"
+  },
+  "local_extensions": [
+    "Verified repeated-span copy proposals; bounded cache-hit admission priority; 128-row batched verification; per-request tf_copy control."
+  ]
 }

@@ -21,8 +21,10 @@ def get_json(url):
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--model',required=True)
+    ap.add_argument('--workload',choices=['ledger','general','code','edit'],default='ledger')
     ap.add_argument('--policy')
     ap.add_argument('--no-drafts',action='store_true')
+    ap.add_argument('--no-copy',action='store_true',help='Keep neural drafts, disable prompt-copy proposals')
     ap.add_argument('--warm-prefix',action='store_true')
     ap.add_argument('--label',required=True)
     ap.add_argument('--base',default='http://127.0.0.1:8888')
@@ -50,13 +52,22 @@ def main():
         except OSError: pass
     def request(c,r,i,barrier,cap=None):
         rng=random.Random(f'gx10-1017-v1:{c}:{r}:{i}')
-        prompt=f'Experiment {c:02d}-{r:02d}-{i:02d}. Read this ledger and then list its entries in reverse order, explaining each one. Continue until the response limit.\n'
-        prompt+='\n'.join(f'Entry {j:04d}: alpha {rng.randrange(100000,999999)} beta {rng.randrange(100000,999999)} gamma {rng.randrange(100000,999999)}.' for j in range(a.input_lines))
+        if a.workload=='general':
+            prompt=f'Case {c}-{r}-{i}. Explain how to design a distributed task queue with retries, cancellation and fairness. Give concrete examples and tradeoffs. Write at least 1500 words.'
+        elif a.workload=='code':
+            prompt=f'Case {c}-{r}-{i}. Write a complete Python implementation of an asynchronous bounded work queue with retries, cancellation, graceful shutdown and useful usage examples. Include extensive code.'
+        elif a.workload=='edit':
+            prompt=f'Case {c}-{r}-{i}. Reproduce ALL the following records exactly, changing only status=pending to status=ready. Start directly with Record 0000. Do not add explanations.\n'
+            prompt+='\n'.join(f'Record {j:04d}: key={rng.randrange(100000,999999)} owner=team-{j%4} region=west status=pending; preserve this record and every field exactly.' for j in range(a.input_lines))
+        else:
+            prompt=f'Experiment {c:02d}-{r:02d}-{i:02d}. Read this ledger and then list its entries in reverse order, explaining each one. Continue until the response limit.\n'
+            prompt+='\n'.join(f'Entry {j:04d}: alpha {rng.randrange(100000,999999)} beta {rng.randrange(100000,999999)} gamma {rng.randrange(100000,999999)}.' for j in range(a.input_lines))
         body={'model':a.model,'messages':[{'role':'user','content':prompt}], 'temperature':0,
               'max_tokens':cap if cap is not None else (min(64,a.output_tokens) if r<0 else a.output_tokens),'stream':True,'stream_options':{'include_usage':True},
               'chat_template_kwargs':{'thinking':a.thinking=='on','enable_thinking':a.thinking=='on','reasoning_effort':'high'}}
         if a.policy: body['tf_policy']=a.policy
         if a.no_drafts: body['draft']=False
+        if a.no_copy: body['tf_copy']=False
         if a.thinking=='on': body['reasoning_effort']='high'
         body['cache_salt']=f'glm-fp4-local-quick:{run_started}:{a.out.name}:{c}:{r}:{i}'
         req=urllib.request.Request(a.base+'/v1/chat/completions',data=json.dumps(body).encode(),headers={'Content-Type':'application/json'})

@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "prompt_tokens": 145485,
+  "wall_seconds": 146.7,
+  "effective_input_tps": 991.717791411043,
+  "draft": false,
+  "output_cap": 1,
+  "scope": "Separate uncached long-context module warmup, excluded from short throughput table."
+}

@@ -1,0 +1,258 @@
+{
+  "before": {
+    "ok": true,
+    "backend": "tensorfold",
+    "busy": false,
+    "requests_running": 0,
+    "requests_total": 11,
+    "prompt_tokens_total": 484,
+    "completion_tokens_total": 453,
+    "prefill_seconds_total": 2.7608,
+    "decode_seconds_total": 14.8705,
+    "cached_tokens_total": 44,
+    "rounds_total": 173,
+    "drafted_total": 404,
+    "accepted_total": 269,
+    "streams": {
+      "decoding": 0,
+      "prefilling": 0,
+      "max": 8,
+      "filling": 0,
+      "paused": 0
+    },
+    "decode_active": {
+      "1": {
+        "seconds": 4.829909533727914,
+        "tokens": 192,
+        "rounds": 81
+      },
+      "2": {
+        "seconds": 0.22843845700845122,
+        "tokens": 9,
+        "rounds": 3
+      },
+      "3": {
+        "seconds": 0.19075810199137777,
+        "tokens": 8,
+        "rounds": 2
+      },
+      "4": {
+        "seconds": 2.1135109920287505,
+        "tokens": 233,
+        "rounds": 20
+      },
+      "5": {
+        "seconds": 0.0,
+        "tokens": 0,
+        "rounds": 0
+      },
+      "6": {
+        "seconds": 0.0,
+        "tokens": 0,
+        "rounds": 0
+      },
+      "7": {
+        "seconds": 0.0,
+        "tokens": 0,
+        "rounds": 0
+      },
+      "8": {
+        "seconds": 0.0,
+        "tokens": 0,
+        "rounds": 0
+      }
+    },
+    "prefill_active_seconds_total": 1.5777125500608236,
+    "prefill_active_tokens_total": 440,
+    "pool_tokens": 1409024,
+    "pool_free_tokens": 1392640,
+    "kept_prompts": 8,
+    "chats_continued": 0,
+    "chats_continued_prefill_tokens": 0,
+    "kept_bytes": 595322880,
+    "kept_bytes_cap": 0,
+    "kept_mix": {
+      "own": 8,
+      "shared": 0,
+      "chats": 8,
+      "rows": 352,
+      "by_chat": [
+        [
+          3,
+          1,
+          44
+        ],
+        [
+          4,
+          1,
+          44
+        ],
+        [
+          5,
+          1,
+          44
+        ],
+        [
+          6,
+          1,
+          44
+        ],
+        [
+          7,
+          1,
+          44
+        ],
+        [
+          8,
+          1,
+          44
+        ],
+        [
+          9,
+          1,
+          44
+        ],
+        [
+          10,
+          1,
+          44
+        ]
+      ]
+    },
+    "multi_prefill": {
+      "chunks": 3,
+      "pieces": 7,
+      "rows": 308
+    },
+    "iteration_s": 0.0,
+    "context_length": 262144
+  },
+  "after": {
+    "ok": true,
+    "backend": "tensorfold",
+    "busy": false,
+    "requests_running": 0,
+    "requests_total": 15,
+    "prompt_tokens_total": 660,
+    "completion_tokens_total": 965,
+    "prefill_seconds_total": 2.7871,
+    "decode_seconds_total": 38.7548,
+    "cached_tokens_total": 220,
+    "rounds_total": 391,
+    "drafted_total": 853,
+    "accepted_total": 559,
+    "streams": {
+      "decoding": 0,
+      "prefilling": 0,
+      "max": 8,
+      "filling": 0,
+      "paused": 0
+    },
+    "decode_active": {
+      "1": {
+        "seconds": 4.897208493726794,
+        "tokens": 193,
+        "rounds": 82
+      },
+      "2": {
+        "seconds": 0.5214075789554045,
+        "tokens": 27,
+        "rounds": 6
+      },
+      "3": {
+        "seconds": 0.35410272696753964,
+        "tokens": 23,
+        "rounds": 3
+      },
+      "4": {
+        "seconds": 7.72187727317214,
+        "tokens": 707,
+        "rounds": 72
+      },
+      "5": {
+        "seconds": 0.0,
+        "tokens": 0,
+        "rounds": 0
+      },
+      "6": {
+        "seconds": 0.0,
+        "tokens": 0,
+        "rounds": 0
+      },
+      "7": {
+        "seconds": 0.0,
+        "tokens": 0,
+        "rounds": 0
+      },
+      "8": {
+        "seconds": 0.0,
+        "tokens": 0,
+        "rounds": 0
+      }
+    },
+    "prefill_active_seconds_total": 1.605980584048666,
+    "prefill_active_tokens_total": 440,
+    "pool_tokens": 1409024,
+    "pool_free_tokens": 1392640,
+    "kept_prompts": 8,
+    "chats_continued": 0,
+    "chats_continued_prefill_tokens": 0,
+    "kept_bytes": 595322880,
+    "kept_bytes_cap": 0,
+    "kept_mix": {
+      "own": 8,
+      "shared": 0,
+      "chats": 8,
+      "rows": 352,
+      "by_chat": [
+        [
+          3,
+          1,
+          44
+        ],
+        [
+          4,
+          1,
+          44
+        ],
+        [
+          5,
+          1,
+          44
+        ],
+        [
+          6,
+          1,
+          44
+        ],
+        [
+          7,
+          1,
+          44
+        ],
+        [
+          8,
+          1,
+          44
+        ],
+        [
+          9,
+          1,
+          44
+        ],
+        [
+          10,
+          1,
+          44
+        ]
+      ]
+    },
+    "multi_prefill": {
+      "chunks": 3,
+      "pieces": 7,
+      "rows": 308
+    },
+    "iteration_s": 0.0,
+    "context_length": 262144
+  }
+}

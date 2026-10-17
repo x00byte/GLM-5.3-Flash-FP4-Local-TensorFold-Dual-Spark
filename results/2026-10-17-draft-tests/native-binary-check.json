@@ -1,0 +1,18 @@
+{
+  "version": "1.0.12",
+  "binary_sha256": "0818b2ad84f517a3aed17cd3c5ea330e59ddb5b2d02484efca3f7deb8dc2db2c",
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "gpu_memory_limit_gib": 1,
+  "tests": [
+    {
+      "command": "info",
+      "exit_code": 0,
+      "output": "family: GLM-5.3-Flash (glm5_next)\nformat: full precision\nweights: 165.33 GiB (177519524806 bytes)\nmemory floor: 167.33 GiB (weights plus a 2.00 GiB runtime margin)\n"
+    },
+    {
+      "command": "serve",
+      "exit_code": 1,
+      "output": "tensorfold: the checkpoint's 164.6 GiB of weights do not fit the 0.0 GiB the CUDA memory budget grants (9.3 GiB free less a 12.2 GiB reserve, under TENSORFOLD_CUDA_MEMORY_LIMIT_GB); free device memory or adjust TENSORFOLD_MEMORY_RESERVE_GIB / TENSORFOLD_CUDA_MEMORY_LIMIT_GB\n"
+    }
+  ]
+}

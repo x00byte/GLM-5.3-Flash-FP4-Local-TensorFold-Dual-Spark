@@ -5,6 +5,7 @@ from pathlib import Path
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('results',type=Path);a=p.parse_args()
  assert (a.results/'complete.json').is_file(),'A completed sweep is required'
+ info=json.loads((a.results/'complete.json').read_text());workload=info.get('workload','ledger');cap=info.get('decode_output_tokens',64)
  with (a.results/'metrics.csv').open() as f:rows=list(csv.DictReader(f))
  clean=[]
  for row in rows:
@@ -25,6 +26,6 @@ def main():
  for c in sorted({r['concurrency'] for r in clean}):
   vals=[index[(phase,mode,c)][key] for phase,mode,key in [('decode','off','streamed_decode_tps'),('decode','on','streamed_decode_tps'),('prefill','off','cold_prefill_endpoint_tps'),('prefill','on','cold_prefill_endpoint_tps')]]
   lines.append('| '+str(c)+' | '+' | '.join(f'{float(v):.1f}' for v in vals)+' |')
- lines+=['','These are full-burst streamed decode rates after prefix warmup. The separate `steady_concurrency_decode_round_tps` column in [reported-metrics.csv](reported-metrics.csv) counts only engine rounds with exactly C decoding streams; it excludes scheduling gaps and lower-concurrency tails. It must not be labeled as a client full-burst rate. Cached token counts divided by warm-request TTFT are not reported as prefill throughput.','','The complete sweep, individual request timing/usage records and health-counter deltas are retained beside this report. This is a short benchmark of a fixed ledger workload, not a general model-quality or long-output throughput evaluation.','','## Credits','','Measured using the [TensorFold](https://github.com/ashhart/TensorFold) Spark runtime, [NVIDIA target checkpoint](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local), and [IncoAI DFlash2](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2).']
+ lines+=[f'','Workload: '+workload+f'; decode cap: {cap} tokens.','','These are full-burst streamed decode rates after prefix warmup. The separate `steady_concurrency_decode_round_tps` column in [reported-metrics.csv](reported-metrics.csv) counts only engine rounds with exactly C decoding streams; it excludes scheduling gaps and lower-concurrency tails. It must not be labeled as a client full-burst rate. Cached token counts divided by warm-request TTFT are not reported as prefill throughput.','','The complete sweep, individual request timing/usage records and health-counter deltas are retained beside this report. This is a short workload-specific benchmark; the exact workload and decode cap are recorded in `complete.json`.','','## Credits','','Measured using the [TensorFold](https://github.com/ashhart/TensorFold) Spark runtime, [NVIDIA target checkpoint](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local), and [IncoAI DFlash2](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2).']
  (a.results/'README.md').write_text('\n'.join(lines)+'\n')
 if __name__=='__main__':main()

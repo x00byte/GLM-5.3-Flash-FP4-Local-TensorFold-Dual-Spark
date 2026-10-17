@@ -1,0 +1,16 @@
+{
+  "runtime_sources": {
+    "files": 430,
+    "sha256": "5aafe38ef4e031e6bbc6f68150a9c0e5b0d220cb3906bbce127efd12e749440d"
+  },
+  "base_image": "ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf",
+  "runtime": {
+    "files": 442,
+    "sha256": "fd586dc7a0b8d397b1669f49d47a171e81fa989822cdc520ce89f249bc118bd2"
+  },
+  "public_build_succeeded": true,
+  "cpu_checks_passed": 13,
+  "both_rank_runtime_sources_identical": true,
+  "public_build_matches_candidate_runtime": true,
+  "adaptive_patch_sha256": "52d5091ff07b83ce336ea1cf1c9f60855a2a618dd5e4768c1016ae81fbef1e57"
+}

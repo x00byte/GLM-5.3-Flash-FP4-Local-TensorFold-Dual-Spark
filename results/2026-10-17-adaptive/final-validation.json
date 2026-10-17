@@ -1,0 +1,9 @@
+{
+  "ready": true,
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "pool_tokens": 1286144,
+  "context_per_request": 262144,
+  "post_context_timed_requests": 9,
+  "post_context_zero_prefill": true,
+  "no_outside_post_context_requests": true
+}
